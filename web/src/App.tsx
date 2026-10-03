@@ -7,7 +7,7 @@ import Header, { type Jump } from "./Header";
 import Lists, { type Tab, TABS } from "./Lists";
 import Focus, { type FocusKey } from "./Focus";
 import QuickNote from "./QuickNote";
-import VoiceNote, { MicIcon } from "./VoiceNote";
+import VoiceNote, { MicIcon, hasDraft } from "./VoiceNote";
 
 // App styrer to ting: er du logget ind, og hvad kigger du på lige nu.
 export default function App() {
@@ -126,7 +126,7 @@ function Shell() {
       {data && (
         <div className="fabs">
           <button type="button" className="fab-sec" onClick={() => setQuick(true)}>+ Note</button>
-          <button type="button" className="fab-mic" aria-label="Indtal en note" onClick={() => setVoice(true)}><MicIcon /></button>
+          <button type="button" className={`fab-mic${!voice && hasDraft() ? " draft" : ""}`} aria-label={hasDraft() ? "Indtal en note (der ligger en ikke-gemt note)" : "Indtal en note"} onClick={() => setVoice(true)}><MicIcon /></button>
         </div>
       )}
       {voice && data && <VoiceNote data={data} onClose={() => setVoice(false)} onSaved={afterSave} />}

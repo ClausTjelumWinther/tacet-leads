@@ -13,22 +13,53 @@ import { short } from "./dates";
 type Step = "lyt" | "sorterer" | "forslag" | "gemmer";
 type Target = { type: "person" | "projekt"; id: string; navn: string } | { type: "ny"; navn: string };
 
+// ---------- Kladde: en indtalt note må aldrig forsvinde ----------
+// Alt, hvad du har sagt, gemmes løbende i telefonens hukommelse (localStorage),
+// indtil du trykker Gem eller Kassér. Lukker du skærmen, eller genstarter telefonen appen,
+// ligger noten klar, næste gang du trykker på mikrofonen.
+const KLADDE = "puls.indtalt-kladde";
+interface Kladde {
+  text: string; forslag: Forslag | null; target: Target | null; note: string;
+  tasks: { tekst: string; forfald: string; med: boolean }[]; useNext: boolean; tid: number;
+}
+function readDraft(): Kladde | null {
+  try { const s = localStorage.getItem(KLADDE); return s ? JSON.parse(s) as Kladde : null; } catch { return null; }
+}
+function writeDraft(k: Kladde | null) {
+  try { if (k) localStorage.setItem(KLADDE, JSON.stringify(k)); else localStorage.removeItem(KLADDE); } catch { /* ingen lagerplads */ }
+}
+/** Bruges af mikrofonknappen til at vise en prik, når der ligger en ikke-gemt note. */
+export const hasDraft = () => !!readDraft();
+
 // Browserens talegenkendelse hedder noget forskelligt i Chrome og Safari.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SpeechRec: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onClose: () => void; onSaved: () => Promise<void> }) {
-  const [step, setStep] = useState<Step>("lyt");
+  // Ligger der en kladde fra sidst, starter vi dér i stedet for at lytte.
+  const [draft] = useState(readDraft);
+  const [step, setStep] = useState<Step>(draft?.forslag ? "forslag" : "lyt");
   const [listening, setListening] = useState(false);
-  const [text, setText] = useState("");          // det du har sagt (kan rettes)
+  const [text, setText] = useState(draft?.text ?? "");   // det du har sagt (kan rettes)
   const [interim, setInterim] = useState("");    // det, der lige nu bliver genkendt
   const [error, setError] = useState("");
-  const [forslag, setForslag] = useState<Forslag | null>(null);
-  const [target, setTarget] = useState<Target | null>(null);
-  const [note, setNote] = useState("");
-  const [tasks, setTasks] = useState<{ tekst: string; forfald: string; med: boolean }[]>([]);
-  const [useNext, setUseNext] = useState(false);
-  const [picking, setPicking] = useState(false);
+  const [forslag, setForslag] = useState<Forslag | null>(draft?.forslag ?? null);
+  const [target, setTarget] = useState<Target | null>(draft?.target ?? null);
+  const [note, setNote] = useState(draft?.note ?? "");
+  const [tasks, setTasks] = useState<{ tekst: string; forfald: string; med: boolean }[]>(draft?.tasks ?? []);
+  const [useNext, setUseNext] = useState(draft?.useNext ?? false);
+  const [picking, setPicking] = useState(!!draft?.forslag && !draft.target);
+
+  // Gem kladden, hver gang noget ændrer sig. Tom tekst = ingen kladde.
+  const savedRef = useRef(false);
+  const tidRef = useRef(draft?.tid ?? Date.now());
+  useEffect(() => {
+    if (savedRef.current) return;
+    if (!text.trim() && !note.trim()) { writeDraft(null); return; }
+    writeDraft({ text, forslag, target, note, tasks, useNext, tid: tidRef.current });
+  }, [text, forslag, target, note, tasks, useNext]);
+
+  function discard() { savedRef.current = true; writeDraft(null); stop(); onClose(); }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
@@ -86,7 +117,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
 
   // Start med det samme, når skærmen åbnes. Stop, hvis den lukkes.
   useEffect(() => {
-    if (SpeechRec) start();
+    if (SpeechRec && !draft) start();
     return () => { wantRef.current = false; recRef.current?.abort?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -137,6 +168,8 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
       if (useNext && target.type === "projekt" && forslag?.naeste_skridt) {
         await setNextStep(target.id, forslag.naeste_skridt.tekst, forslag.naeste_skridt.dato);
       }
+      savedRef.current = true;
+      writeDraft(null);   // gemt i databasen, så kladden kan væk
       await onSaved();
       onClose();
     } catch (e) {
@@ -152,6 +185,11 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
           <h2 id="vn-title">{step === "forslag" || step === "gemmer" ? "Tjek og gem" : "Indtal"}</h2>
           <button type="button" className="linkbtn" onClick={() => { stop(); onClose(); }}>Luk</button>
         </div>
+
+        {draft && (
+          <p className="draft-note">Ikke-gemt note fra kl. {new Date(draft.tid).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}.
+            {" "}<button type="button" className="linkbtn" onClick={discard}>Kassér</button></p>
+        )}
 
         {(step === "lyt" || step === "sorterer") && (
           <>

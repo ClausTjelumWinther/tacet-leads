@@ -119,8 +119,10 @@ ${[...personer, ...projekter].join("\n")}`;
     system,
     // deno-lint-ignore no-explicit-any
     tools: [tool as any],
-    tool_choice: { type: "tool", name: "gem_note" },
-    messages: [{ role: "user", content: `Claus har indtalt:\n\n"""${transkript}"""` }],
+    // Nyere modeller tillader ikke at tvinge et bestemt værktøj, så vi beder pænt i stedet
+    // og tjekker bagefter, at svaret faktisk er et kald til gem_note.
+    tool_choice: { type: "auto" },
+    messages: [{ role: "user", content: `Claus har indtalt:\n\n"""${transkript}"""\n\nSvar ved at kalde gem_note.` }],
   });
 
   try {
@@ -128,7 +130,13 @@ ${[...personer, ...projekter].join("\n")}`;
     let msg: any = null;
     let sidsteFejl: unknown = null;
     for (const model of MODELLER) {
-      try { msg = await ask(model); break; }
+      try {
+        msg = await ask(model);
+        // deno-lint-ignore no-explicit-any
+        if (msg.content.some((c: any) => c.type === "tool_use")) break;
+        console.error(`${model} kaldte ikke gem_note, prøver næste model`);
+        continue;
+      }
       catch (e) {
         sidsteFejl = e;
         // deno-lint-ignore no-explicit-any
