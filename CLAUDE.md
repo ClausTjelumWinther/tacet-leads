@@ -13,7 +13,9 @@ Svar altid på dansk. Hold svar korte. Claus læser ofte på mobilen.
 | Google Kalender | Afholdte og kommende møder | Kalender-connector |
 | Claus | Det der kun findes i hans hoved | Tale eller tekst i sessionen |
 
-Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer`, `opgaver`, `user_roles`.
+Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer`, `opgaver`, `haendelser`, `forslag`, `user_roles`.
+
+**Hændelser og forslag** (`haendelser`, `forslag`) fyldes af morgen-gennemgangen af mail og kalender (`docs/morgen-sync.md`), som kører hver morgen som planlagt opgave. `haendelser` er fakta (mail ind/ud, møder, invitationer: dato, emne, modpart) og må skrives uden ok. `forslag` er alt, der kræver Claus' ja (nye kontakter, nyt næste skridt, nye løfter); appen viser dem under *I dag* og udfører dem først ved Ja. Brug `haendelser` til "Hvor er vi med X?" og til at se, hvem bolden ligger hos.
 
 **Personer** (`personer`) er Claus' relationsnoter om mennesker. Claus er relationsmand, og det vigtigste her er de små ting, han vil huske næste gang han møder folk: familie, interesser, hvad de talte om. `kategori` er `privat`, `netvaerk` eller `kunde`. **Private kontakter vises aldrig i pipeline, top 3 eller lister,** medmindre Claus spørger direkte til dem.
 

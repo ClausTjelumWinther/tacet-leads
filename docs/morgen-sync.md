@@ -25,10 +25,11 @@ select kilde from forslag;                                                    --
 ```
 
 ### 2. Mail (Gmail)
-Søg `newer_than:2d -category:promotions -category:social -category:forums`. Spring nyhedsbreve, kvitteringer, noreply-adresser og automatiske systemmails over.
+Kendte domæner uden `virksomheder.domaene`: `ken.dk` = KEN. Søg `newer_than:2d -category:promotions -category:social -category:forums`. Spring nyhedsbreve, kvitteringer, noreply-adresser og automatiske systemmails over.
 
 For hver mail:
 - **Retning:** fra claus@tacet.dk = `mail_ud` (modparter: to + cc). Ellers `mail_ind` (modpart: from).
+- **Invitationer:** sender Claus en invitation til et arrangement (fx emne med "invitation", "middag", "arrangement", "AI middag på Vår"), så er typen `invitation`, og titlen `Inviteret: <arrangement> <dato>`. Det er sådan "jeg har inviteret Otto til 22/10" kommer med af sig selv. Svar på invitationen registreres som `mail_ind` med titlen `Svar på invitation: <arrangement>`.
 - **Match modparten** i denne rækkefølge: `personer.email`, `virksomheder.email`, derefter domæne mod `virksomheder.domaene`. Match aldrig på brede domæner (gmail.com, hotmail.com, outlook.com, live.dk, icloud.com, danskebank.dk). Se også matchingreglerne i `CLAUDE.md` (fx Tempur = Dan Foam, Steen/HAUGE).
 - **Projekt:** det ikke-tabte projekt på virksomheden. Har virksomheden flere, så det i `dialog`/`tilbud` før `lead`.
 - Skriv én række pr. mail og modpart:
