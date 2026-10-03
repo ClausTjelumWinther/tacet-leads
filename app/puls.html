@@ -72,7 +72,27 @@ section.group{display:flex;flex-direction:column;gap:0;min-width:0}
 .pill{font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted);font-weight:500}
 .pill.v{border-color:transparent;background:var(--velatir-soft);color:var(--velatir)}
 
-.detail{grid-column:1/-1;cursor:default;display:flex;flex-direction:column;gap:12px;padding:12px 0 4px}
+/* Fokuskort: én person eller ét projekt ad gangen */
+.focus{display:flex;flex-direction:column;gap:20px;padding-top:8px}
+.back{border:0;background:none;color:var(--accent);padding:4px 0;font-size:14px;align-self:flex-start}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.fname{font-size:clamp(28px,6vw,42px);letter-spacing:-.015em;line-height:1.05;margin-top:4px}
+.fsub{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;color:var(--muted);margin-top:8px}
+.fgrid{display:grid;gap:24px;grid-template-columns:1fr}
+@media (min-width:900px){ .fgrid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)} }
+.fmain,.fside{display:flex;flex-direction:column;gap:24px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.sec{font-family:var(--f-body);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.bignext{font-family:var(--f-display);font-size:21px;font-weight:600;line-height:1.3;margin:0}
+.bignext.none{color:var(--muted);font-weight:500}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tl li{display:grid;grid-template-columns:6.2em minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}
+.tl .d{font-family:var(--f-mono);font-size:12px;color:var(--muted);padding-top:2px}
+.facts{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.facts div{display:flex;justify-content:space-between;gap:12px}
+.facts span:first-child{color:var(--muted)}
+.flash{font-size:13px;padding:8px 12px;border-radius:8px;background:var(--accent-soft);color:var(--accent)}
+.flash.err{background:var(--warn-soft);color:var(--warn)}
 .kv{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}
 .kv .sel{user-select:all;font-family:var(--f-mono);font-size:13px}
 .copy{border:0;background:none;color:var(--accent);font-size:12px;padding:0 4px}
@@ -122,7 +142,7 @@ textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(-
   const ACTIVE = ["tilbud","dialog","lead"];
   const TABS = [["idag","I dag"],["pipeline","Pipeline"],["netvaerk","Netværk"],["velatir","Velatir"],["personer","Personer"]];
   const $ = s => document.querySelector(s);
-  let mcp = null, data = null, tab = "idag", open = null, showPrivate = false, query = "";
+  let mcp = null, data = null, tab = "idag", focus = null, flash = null, listScroll = 0, showPrivate = false, query = "";
 
   try { const t = localStorage.getItem("puls.tab"); if (t && TABS.some(x=>x[0]===t)) tab = t; } catch(e){}
 
@@ -184,8 +204,8 @@ textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(-
   }
 
   const LOAD = `select json_build_object(
-    'p',(select coalesce(json_agg(x),'[]'::json) from (select p.id,p.produkt,p.stage,p.vaerdi,p.naeste_skridt,p.naeste_skridt_dato,p.noter,p.velatir,v.firmanavn,v.kontaktperson,v.email,v.mobilnummer from projekter p left join virksomheder v on v.id=p.virksomhed_id) x),
-    'pe',(select coalesce(json_agg(x),'[]'::json) from (select pe.id,pe.navn,pe.kategori,pe.email,pe.mobilnummer,pe.noter,pe.sidste_kontakt,v.firmanavn from personer pe left join virksomheder v on v.id=pe.virksomhed_id) x),
+    'p',(select coalesce(json_agg(x),'[]'::json) from (select p.id,p.virksomhed_id as vid,p.produkt,p.stage,p.vaerdi,p.naeste_skridt,p.naeste_skridt_dato,p.noter,p.velatir,v.firmanavn,v.kontaktperson,v.email,v.mobilnummer from projekter p left join virksomheder v on v.id=p.virksomhed_id) x),
+    'pe',(select coalesce(json_agg(x),'[]'::json) from (select pe.id,pe.virksomhed_id as vid,pe.navn,pe.kategori,pe.email,pe.mobilnummer,pe.noter,pe.sidste_kontakt,v.firmanavn from personer pe left join virksomheder v on v.id=pe.virksomhed_id) x),
     'o',(select coalesce(json_agg(x),'[]'::json) from (select o.id,o.tekst,o.forfald,pe.navn as person,v.firmanavn as firma from opgaver o left join personer pe on pe.id=o.person_id left join projekter p on p.id=o.projekt_id left join virksomheder v on v.id=p.virksomhed_id where not o.faerdig) x)
   ) as d`;
 
@@ -237,63 +257,31 @@ textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(-
     $("#tabs").innerHTML = TABS.map(([k,l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k===tab}">${l}<span class="n">${counts[k]}</span></button>`).join("");
   }
 
+  // ---------- Rækker i listerne ----------
   function projRow(p){
-    const id = "p:"+p.id, isOpen = open === id;
     const meta = [p.stage!=="netvaerk" ? `<span class="pill">${STAGES[p.stage]||esc(p.stage)}</span>` : "", p.velatir ? `<span class="pill v">Velatir</span>` : ""].join("");
-    return `<div class="row" tabindex="0" data-open="${id}" aria-expanded="${isOpen}">
+    return `<div class="row" tabindex="0" role="button" data-focus="p:${p.id}">
       <div class="who">${esc(projName(p))}${p.kontaktperson?`<span class="person">· ${esc(p.kontaktperson.trim())}</span>`:""}${meta}</div>
       <div class="side">${whenChip(p.naeste_skridt_dato)}${p.vaerdi?`<span class="val">${kr(p.vaerdi)}</span>`:""}</div>
       <div class="next ${p.naeste_skridt?"":"none"}">${esc(p.naeste_skridt || "Intet næste skridt")}</div>
-      ${isOpen ? projDetail(p) : ""}
     </div>`;
   }
 
-  function contact(email, phone){
-    const parts = [];
-    if (email) parts.push(`<span><span class="sel">${esc(email)}</span><button class="copy" type="button" data-copy="${esc(email)}">Kopiér</button></span>`);
-    if (phone) parts.push(`<span><span class="sel">${esc(phone.trim())}</span><button class="copy" type="button" data-copy="${esc(phone.trim())}">Kopiér</button></span>`);
-    return parts.length ? `<div class="kv">${parts.join("")}</div>` : `<div class="kv" style="color:var(--muted)">Ingen kontaktoplysninger</div>`;
-  }
-
-  function projDetail(p){
-    return `<div class="detail" data-stop>
-      <div class="kv"><span>${esc(p.produkt)}</span>${p.vaerdi?`<span class="mono">${kr(p.vaerdi)}</span>`:""}</div>
-      ${contact(p.email, p.mobilnummer)}
-      <div class="acts"><span class="lbl">Flyt næste skridt</span>
-        <button class="btn" type="button" data-move="1">I morgen</button>
-        <button class="btn" type="button" data-move="3">+3 dage</button>
-        <button class="btn" type="button" data-move="7">+1 uge</button>
-        <button class="btn" type="button" data-move="14">+2 uger</button>
-      </div>
-      ${p.noter ? `<div class="notes">${esc(p.noter)}</div>` : ""}
-      <label class="lbl" for="note-${p.id}" style="font-size:12px;color:var(--muted)">Ny note</label>
-      <textarea id="note-${p.id}" placeholder="Fx: Kasper har budget fra januar"></textarea>
-      <div class="acts"><button class="btn primary" type="button" data-note="p">Gem note</button><span class="status" id="st-${p.id}"></span></div>
-    </div>`;
-  }
-
+  const KAT = {privat:"Privat", netvaerk:"Netværk", kunde:"Kunde"};
   function personRow(x){
-    const id = "pe:"+x.id, isOpen = open === id;
     const sub = x.firmanavn ? `<span class="person">· ${esc(x.firmanavn.trim())}</span>` : "";
-    const last = x.sidste_kontakt ? `Sidst talt sammen ${dk(x.sidste_kontakt)}` : "Ingen kontakt registreret";
+    const last = x.sidste_kontakt ? `Talt sammen ${dk(x.sidste_kontakt)}` : "Ingen kontakt registreret";
     const first = (x.noter||"").split("\n")[0];
-    return `<div class="row" tabindex="0" data-open="${id}" aria-expanded="${isOpen}">
-      <div class="who">${esc(x.navn)}${sub}<span class="pill">${x.kategori==="privat"?"Privat":x.kategori==="netvaerk"?"Netværk":"Kunde"}</span></div>
+    return `<div class="row" tabindex="0" role="button" data-focus="pe:${x.id}">
+      <div class="who">${esc(x.navn)}${sub}<span class="pill">${KAT[x.kategori]||esc(x.kategori)}</span></div>
       <div class="side"><span class="val">${esc(last)}</span></div>
       <div class="next ${first?"":"none"}">${esc(first || "Ingen noter endnu")}</div>
-      ${isOpen ? `<div class="detail" data-stop>
-        ${contact(x.email, x.mobilnummer)}
-        ${x.noter ? `<div class="notes">${esc(x.noter)}</div>` : ""}
-        <label for="note-${x.id}" style="font-size:12px;color:var(--muted)">Hvad talte I om?</label>
-        <textarea id="note-${x.id}" placeholder="Familie, interesser, hvad du lovede"></textarea>
-        <div class="acts"><button class="btn primary" type="button" data-note="pe">Gem og sæt sidst talt til i dag</button><span class="status" id="st-${x.id}"></span></div>
-      </div>` : ""}
     </div>`;
   }
 
   function taskRow(o){
     const who = o.person || (o.firma && o.firma.trim()) || "";
-    return `<div class="row" data-task="${o.id}" style="cursor:default">
+    return `<div class="row" style="cursor:default">
       <div class="who">${esc(o.tekst)}</div>
       <div class="side">${whenChip(o.forfald)}<button class="btn" type="button" data-done="${o.id}">Færdig</button></div>
       <div class="next ${who?"":"none"}">${esc(who || "Uden person")}</div>
@@ -305,90 +293,194 @@ textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(-
       ${rows.length ? rows.join("") : `<div class="empty">${opts.empty || "Intet her."}</div>`}</section>`;
   }
 
-  function render(){
-    if (!data) return;
-    renderPulse(); renderTabs();
-    const t = today(), w = addDays(t,6), m = $("#main");
+  function contact(email, phone){
+    const parts = [];
+    if (email) parts.push(`<div><span class="sel">${esc(email)}</span><button class="copy" type="button" data-copy="${esc(email)}">Kopiér</button></div>`);
+    if (phone) parts.push(`<div><span class="sel">${esc(phone.trim())}</span><button class="copy" type="button" data-copy="${esc(phone.trim())}">Kopiér</button></div>`);
+    return parts.length ? `<div class="kv" style="flex-direction:column">${parts.join("")}</div>` : `<div class="empty" style="padding:0">Ingen kontaktoplysninger endnu.</div>`;
+  }
+
+  // Noter er skrevet som "DD/MM/YYYY: tekst", nyeste øverst. Vis dem som tidslinje.
+  function timeline(noter){
+    const lines = (noter||"").split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return `<div class="empty" style="padding:0">Ingen noter endnu. Skriv den første ovenfor.</div>`;
+    return `<ol class="tl">${lines.map(l => {
+      const m = l.match(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s*[:\-]?\s+(.*)$/);
+      return m ? `<li><span class="d">${esc(m[1])}</span><span>${esc(m[2])}</span></li>` : `<li><span class="d"></span><span>${esc(l)}</span></li>`;
+    }).join("")}</ol>`;
+  }
+
+  function noteBox(placeholder, label){
+    return `<section class="panel">
+      <label class="sec" for="fnote">Notér</label>
+      <textarea id="fnote" placeholder="${esc(placeholder)}"></textarea>
+      <div class="acts"><button class="btn primary" type="button" data-note>${esc(label)}</button><span class="status" id="fst"></span></div>
+    </section>`;
+  }
+
+  function flashHtml(){ return flash ? `<div class="flash ${flash.err?"err":""}">${esc(flash.text)}</div>` : ""; }
+
+  // ---------- Fokuskort ----------
+  function renderFocus(){
+    const [kind, id] = focus.split(":");
+    const backTo = (TABS.find(t => t[0]===tab)||TABS[0])[1];
+    const back = `<button class="back" type="button" data-back>← Tilbage til ${esc(backTo)}</button>`;
+
+    if (kind === "p"){
+      const p = data.p.find(x => x.id === id);
+      if (!p){ focus = null; return renderList(); }
+      const people = data.pe.filter(x => p.vid && x.vid === p.vid);
+      const others = data.p.filter(q => p.vid && q.vid === p.vid && q.id !== p.id);
+      const related = people.map(personRow).concat(others.map(projRow));
+      return `<div class="focus">${back}
+        <header>
+          <div class="eyebrow">${STAGES[p.stage]||esc(p.stage)}${p.velatir?" · Velatir":""}</div>
+          <h2 class="fname">${esc(projName(p))}</h2>
+          <div class="fsub">${p.kontaktperson?`<span>${esc(p.kontaktperson.trim())}</span>`:""}<span>${esc(p.produkt)}</span>${p.vaerdi?`<span class="mono">${kr(p.vaerdi)}</span>`:""}</div>
+        </header>
+        ${flashHtml()}
+        <div class="fgrid">
+          <div class="fmain">
+            <section class="panel">
+              <div class="sec">Næste skridt</div>
+              <p class="bignext ${p.naeste_skridt?"":"none"}">${esc(p.naeste_skridt || "Intet næste skridt endnu")}</p>
+              <div>${whenChip(p.naeste_skridt_dato)}</div>
+              <div class="acts"><span class="lbl">Flyt til</span>
+                <button class="btn" type="button" data-move="1">I morgen</button>
+                <button class="btn" type="button" data-move="3">+3 dage</button>
+                <button class="btn" type="button" data-move="7">+1 uge</button>
+                <button class="btn" type="button" data-move="14">+2 uger</button>
+              </div>
+            </section>
+            ${noteBox("Fx: Kasper har budget fra januar", "Gem note")}
+            <section><div class="ghead"><h2>Historik</h2><small>nyeste øverst</small></div>${timeline(p.noter)}</section>
+          </div>
+          <aside class="fside">
+            <section class="panel"><div class="sec">Kontakt</div>${contact(p.email, p.mobilnummer)}</section>
+            ${group("Hos samme firma", related, {empty:"Ingen andre personer eller projekter endnu."})}
+          </aside>
+        </div>
+      </div>`;
+    }
+
+    const x = data.pe.find(y => y.id === id);
+    if (!x){ focus = null; return renderList(); }
+    const projs = data.p.filter(q => x.vid && q.vid === x.vid);
+    const colleagues = data.pe.filter(y => x.vid && y.vid === x.vid && y.id !== x.id);
+    return `<div class="focus">${back}
+      <header>
+        <div class="eyebrow">${KAT[x.kategori]||esc(x.kategori)}</div>
+        <h2 class="fname">${esc(x.navn)}</h2>
+        <div class="fsub">${x.firmanavn?`<span>${esc(x.firmanavn.trim())}</span>`:""}<span>${x.sidste_kontakt?`Talt sammen ${dk(x.sidste_kontakt)}`:"Ingen kontakt registreret"}</span></div>
+      </header>
+      ${flashHtml()}
+      <div class="fgrid">
+        <div class="fmain">
+          ${noteBox("Hvad talte I om? Familie, interesser, hvad du lovede", "Gem og sæt talt sammen til i dag")}
+          <section><div class="ghead"><h2>Det du ved om ${esc(x.navn.split(" ")[0])}</h2><small>nyeste øverst</small></div>${timeline(x.noter)}</section>
+        </div>
+        <aside class="fside">
+          <section class="panel"><div class="sec">Kontakt</div>${contact(x.email, x.mobilnummer)}</section>
+          ${projs.length ? group("Projekter", projs.map(projRow)) : ""}
+          ${colleagues.length ? group("Kolleger", colleagues.map(personRow)) : ""}
+        </aside>
+      </div>
+    </div>`;
+  }
+
+  // ---------- Lister ----------
+  function renderList(){
+    const t = today(), w = addDays(t,6);
     if (tab === "idag"){
       const live = projects(p => p.stage !== "tabt");
       const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).sort(byDate);
       const soon = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= w).sort(byDate);
       const nodate = live.filter(p => ACTIVE.includes(p.stage) && !p.naeste_skridt_dato);
       const tasks = data.o.filter(o => matches(o.tekst,o.person,o.firma)).sort((a,b)=>(a.forfald||"9999")<(b.forfald||"9999")?-1:1);
-      m.innerHTML = `<div class="grid split">
+      return `<div class="grid split">
         <div>${group("Forfaldent", over.map(projRow), {warn:over.length>0, empty:"Intet forfaldent. Du er ajour."})}
              ${group("De næste 7 dage", soon.map(projRow), {empty:"Ingen næste skridt den kommende uge."})}</div>
         <div>${group("Små løfter", tasks.map(taskRow), {empty:"Ingen åbne løfter."})}
              ${group("Aktive uden dato", nodate.map(projRow), {empty:"Alle aktive leads har en dato."})}</div>
       </div>`;
-    } else if (tab === "pipeline"){
+    }
+    if (tab === "pipeline"){
       const cols = ["tilbud","dialog","lead","kunde"].map(s => {
         const rows = projects(p => p.stage === s).sort(byDate);
         const sum = rows.reduce((a,p)=>a+(p.vaerdi||0),0);
         return group(`${STAGES[s]}${sum?` <span class="mono" style="font-size:13px;color:var(--muted);font-weight:400">· ${kr(sum)}</span>`:""}`, rows.map(projRow));
       });
       const lost = data.p.filter(p => p.stage === "tabt").length;
-      m.innerHTML = `<div class="grid split"><div>${cols[0]}${cols[1]}</div><div>${cols[2]}${cols[3]}<div class="empty">${lost} tabte projekter er skjult.</div></div></div>`;
-    } else if (tab === "netvaerk"){
+      return `<div class="grid split"><div>${cols[0]}${cols[1]}</div><div>${cols[2]}${cols[3]}<div class="empty">${lost} tabte projekter er skjult.</div></div></div>`;
+    }
+    if (tab === "netvaerk"){
       const rows = projects(p => p.stage === "netvaerk").sort(byDate).map(projRow);
       const ppl = data.pe.filter(x => x.kategori === "netvaerk" && matches(x.navn,x.firmanavn,x.noter)).map(personRow);
-      m.innerHTML = `<div class="grid split"><div>${group("Leadgeneratorer", rows, {empty:"Ingen i netværket endnu."})}</div><div>${group("Personer i netværket", ppl, {empty:"Indtal en note om en person, så dukker de op her."})}</div></div>`;
-    } else if (tab === "velatir"){
-      const rows = projects(p => p.velatir).sort(byDate).map(projRow);
-      m.innerHTML = `<div class="grid">${group("Leads der peger på Velatir", rows, {empty:"Ingen leads er markeret til Velatir endnu."})}</div>`;
-    } else if (tab === "personer"){
-      const ppl = data.pe.filter(x => (showPrivate || x.kategori !== "privat") && matches(x.navn,x.firmanavn,x.noter))
-        .sort((a,b)=>(b.sidste_kontakt||"")>(a.sidste_kontakt||"")?1:-1).map(personRow);
-      const hidden = data.pe.filter(x => x.kategori === "privat").length;
-      m.innerHTML = `<label class="toggle"><input type="checkbox" id="priv" ${showPrivate?"checked":""}> Vis private kontakter (${hidden})</label>
-        <div class="grid">${group("Personer", ppl, {empty:"Ingen personer endnu. Indtal en note efter dit næste møde."})}</div>`;
+      return `<div class="grid split"><div>${group("Leadgeneratorer", rows, {empty:"Ingen i netværket endnu."})}</div><div>${group("Personer i netværket", ppl, {empty:"Indtal en note om en person, så dukker de op her."})}</div></div>`;
     }
+    if (tab === "velatir"){
+      return `<div class="grid">${group("Leads der peger på Velatir", projects(p => p.velatir).sort(byDate).map(projRow), {empty:"Ingen leads er markeret til Velatir endnu."})}</div>`;
+    }
+    const ppl = data.pe.filter(x => (showPrivate || x.kategori !== "privat") && matches(x.navn,x.firmanavn,x.noter))
+      .sort((a,b)=>(b.sidste_kontakt||"")>(a.sidste_kontakt||"")?1:-1).map(personRow);
+    const hidden = data.pe.filter(x => x.kategori === "privat").length;
+    return `<label class="toggle"><input type="checkbox" id="priv" ${showPrivate?"checked":""}> Vis private kontakter (${hidden})</label>
+      <div class="grid">${group("Personer", ppl, {empty:"Ingen personer endnu. Indtal en note efter dit næste møde."})}</div>`;
   }
 
+  function render(){
+    if (!data) return;
+    renderPulse(); renderTabs();
+    $("#q").hidden = !!focus;
+    $("#main").innerHTML = focus ? renderFocus() : renderList();
+  }
+
+  function openFocus(key){ if (!focus) listScroll = window.scrollY; focus = key; flash = null; render(); window.scrollTo(0,0); }
+  function closeFocus(){ focus = null; flash = null; render(); window.scrollTo(0, listScroll); }
+
   // Skrivninger: kun efter et klik, ingen automatiske genforsøg
-  async function write(query, statusEl, okText){
-    if (statusEl){ statusEl.className = "status"; statusEl.textContent = "Gemmer…"; }
-    try { await sql(query); if (statusEl){ statusEl.className = "status okk"; statusEl.textContent = okText; } await load(); }
-    catch(e){ if (statusEl){ statusEl.className = "status err"; statusEl.textContent = errText(e) + (e && (e.code==="server_unavailable"||e.code==="upstream_error") ? " Tjek om det blev gemt, før du prøver igen." : ""); } }
+  async function write(query, okText){
+    const st = document.getElementById("fst");
+    if (st){ st.className = "status"; st.textContent = "Gemmer…"; }
+    try { await sql(query); flash = okText ? {text: okText} : null; await load(); }
+    catch(e){
+      const msg = errText(e) + (e && (e.code==="server_unavailable"||e.code==="upstream_error") ? " Tjek om det blev gemt, før du prøver igen." : "");
+      if (st){ st.className = "status err"; st.textContent = msg; } else { flash = {text: msg, err: true}; render(); }
+    }
   }
 
   document.addEventListener("click", async ev => {
     const el = ev.target;
     const tb = el.closest("[data-tab]");
-    if (tb){ tab = tb.dataset.tab; open = null; try{localStorage.setItem("puls.tab",tab);}catch(e){} render(); return; }
+    if (tb){ tab = tb.dataset.tab; focus = null; flash = null; try{localStorage.setItem("puls.tab",tab);}catch(e){} render(); window.scrollTo(0,0); return; }
+    if (el.closest("[data-back]")){ closeFocus(); return; }
     const cp = el.closest("[data-copy]");
     if (cp){ const v = cp.dataset.copy; try { await navigator.clipboard.writeText(v); cp.textContent = "Kopieret"; } catch(e){ const s = cp.previousElementSibling; const r = document.createRange(); r.selectNodeContents(s); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } return; }
-    const row = el.closest(".row[data-open]");
-    if (!row) return;
-    const id = row.dataset.open, [kind, uuid] = id.split(":");
-    if (!isId(uuid)) return;
-    const mv = el.closest("[data-move]");
-    if (mv){ const d = addDays(today(), +mv.dataset.move); write(`update projekter set naeste_skridt_dato='${d}' where id='${uuid}'`, document.getElementById("st-"+uuid), "Flyttet til " + dk(d)); return; }
-    const nb = el.closest("[data-note]");
-    if (nb){
-      const ta = document.getElementById("note-"+uuid), txt = (ta.value||"").trim();
-      if (!txt){ const s = document.getElementById("st-"+uuid); s.className="status err"; s.textContent="Skriv noten først."; ta.focus(); return; }
-      const line = lit(stamp() + ": " + txt);
-      const q = kind === "p"
-        ? `update projekter set noter = ${line} || coalesce(E'\\n' || noter, '') where id='${uuid}'`
-        : `update personer set noter = ${line} || coalesce(E'\\n' || noter, ''), sidste_kontakt='${today()}' where id='${uuid}'`;
-      write(q, document.getElementById("st-"+uuid), "Noten er gemt");
-      return;
+    const dn = el.closest("[data-done]");
+    if (dn){ const id = dn.dataset.done; if (!isId(id)) return; dn.disabled = true; dn.textContent = "Gemmer…"; write(`update opgaver set faerdig=true, faerdig_dato='${today()}' where id='${id}'`, "Løftet er markeret som færdigt"); return; }
+    if (focus){
+      const [kind, uuid] = focus.split(":");
+      if (!isId(uuid)) return;
+      const mv = el.closest("[data-move]");
+      if (mv && kind === "p"){ const d = addDays(today(), +mv.dataset.move); write(`update projekter set naeste_skridt_dato='${d}' where id='${uuid}'`, "Næste skridt er flyttet til " + dk(d)); return; }
+      if (el.closest("[data-note]")){
+        const ta = document.getElementById("fnote"), txt = (ta.value||"").trim();
+        if (!txt){ const s = document.getElementById("fst"); s.className="status err"; s.textContent="Skriv noten først."; ta.focus(); return; }
+        const line = lit(stamp() + ": " + txt);
+        const q = kind === "p"
+          ? `update projekter set noter = ${line} || coalesce(E'\\n' || noter, '') where id='${uuid}'`
+          : `update personer set noter = ${line} || coalesce(E'\\n' || noter, ''), sidste_kontakt='${today()}' where id='${uuid}'`;
+        write(q, "Noten er gemt");
+        return;
+      }
     }
-    if (el.closest("[data-stop]")) return;
-    open = open === id ? null : id; render();
-  });
-
-  document.addEventListener("click", ev => {
-    const dn = ev.target.closest("[data-done]");
-    if (!dn) return;
-    const id = dn.dataset.done; if (!isId(id)) return;
-    dn.disabled = true; dn.textContent = "Gemmer…";
-    write(`update opgaver set faerdig=true, faerdig_dato='${today()}' where id='${id}'`, null, "");
+    const row = el.closest("[data-focus]");
+    if (row){ const [k, u] = row.dataset.focus.split(":"); if (isId(u)) openFocus(row.dataset.focus); }
   });
 
   document.addEventListener("keydown", ev => {
-    if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches(".row[data-open]")){ ev.preventDefault(); ev.target.click(); }
+    if (ev.key === "Escape" && focus && !ev.target.matches("textarea")){ closeFocus(); return; }
+    if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches(".row[data-focus]")){ ev.preventDefault(); ev.target.click(); }
   });
   document.addEventListener("change", ev => { if (ev.target.id === "priv"){ showPrivate = ev.target.checked; render(); } });
   $("#q").addEventListener("input", ev => { query = ev.target.value.trim(); render(); });
