@@ -13,7 +13,11 @@ Svar altid på dansk. Hold svar korte. Claus læser ofte på mobilen.
 | Google Kalender | Afholdte og kommende møder | Kalender-connector |
 | Claus | Det der kun findes i hans hoved | Tale eller tekst i sessionen |
 
-Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `user_roles`. `items` er en indkøbsliste og hører ikke til leadsystemet. Rør den ikke.
+Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer`, `opgaver`, `user_roles`.
+
+**Personer** (`personer`) er Claus' relationsnoter om mennesker. Claus er relationsmand, og det vigtigste her er de små ting, han vil huske næste gang han møder folk: familie, interesser, hvad de talte om. `kategori` er `privat`, `netvaerk` eller `kunde`. **Private kontakter vises aldrig i pipeline, top 3 eller lister,** medmindre Claus spørger direkte til dem.
+
+**Opgaver** (`opgaver`) er små løfter og huskepunkter ("send Christian kontakt til Claus Haugaard"). De kan hænge på en person eller et projekt og bliver ved med at dukke op, indtil de er markeret `faerdig`. `items` er en indkøbsliste og hører ikke til leadsystemet. Rør den ikke.
 
 Stage-værdier i `projekter.stage`: `lead`, `dialog`, `tilbud`, `kunde`, `tabt`, `netvaerk`.
 
@@ -53,6 +57,18 @@ Læs projektet i Supabase, de seneste mails med kunden og kommende/afholdte mød
 - Indeholder noten et næste skridt, så foreslå at opdatere `naeste_skridt`. Vent på ja.
 - Findes kunden ikke, så tilbyd at oprette virksomhed + projekt som `lead`.
 
+### 2b. Efter et møde: "Jeg har talt med X …"
+Claus indtaler typisk lige efter et møde, i løs tale. Gør sådan:
+1. Find personen i `personer` (navn, mail). Findes de ikke, så opret dem. Er de kontakt på en virksomhed i systemet, så sæt `virksomhed_id` og kategori derefter. Ellers er standarden `privat`.
+2. Skriv noten **øverst** i `personer.noter` med dato. Ryd sproget lidt op, men bevar alle detaljer.
+3. Sæt `sidste_kontakt` til mødedatoen.
+4. **Lovede Claus noget** ("jeg sender ham …", "jeg lovede at …"), så opret en opgave med forfald i morgen, medmindre han siger andet. Tjek først i Gmail, om han allerede har gjort det.
+5. Hører samtalen til et projekt, så foreslå også en note eller et nyt næste skridt på projektet.
+6. Kvittér på én linje, plus én linje pr. opgave: *"Noteret på Henrik Welander. Opgave: send kontakt til Christian (i morgen)."*
+
+### 2c. Før et møde: "Hvad ved jeg om X?"
+Læs personens noter og seneste mails. Svar med det, Claus skal huske i samtalen: familie, hvad de talte om sidst, åbne løfter. Maks. fem linjer.
+
 ### 3. "Hvem skal jeg tage fat i?" / mandagens top 3
 Gennemgå alle projekter med stage `lead`, `dialog` og `tilbud` plus outreach med `besked_sendt`/`i_dialog`. Vurdér hver på:
 
@@ -68,7 +84,11 @@ Netværk tæller ikke som salg. Nævn dem kun under top 3, hvis et næste skridt
 ### Lister
 - **"Vis netværket"** → alle med `stage = 'netvaerk'`, med næste skridt og dato.
 - **"Vis Velatir-leads"** → alle projekter med `velatir = true`, uanset stage, med kontakt og næste skridt.
-- **"Hvad er forfaldent?"** → alle projekter, hvor `naeste_skridt_dato` er passeret, ældste først.
+- **"Hvad er forfaldent?"** → alle projekter, hvor `naeste_skridt_dato` er passeret, og alle åbne opgaver med passeret `forfald`, ældste først.
+- **"Hvad har jeg lovet?"** → alle åbne opgaver.
+- **"Færdig: …"** → markér opgaven `faerdig = true` med dagens dato.
+
+Åbne, forfaldne opgaver nævnes altid til sidst i top 3 som *"Husk også: …"*. Små løfter vejer tungt for en relationsmand.
 
 ### 4. "Skriv til X"
 Opret en **kladde** i Gmail med `create_draft`, skrevet i Claus' stil (se `docs/skrivestil.md`). Send aldrig selv.
