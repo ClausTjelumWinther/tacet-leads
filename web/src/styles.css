@@ -171,3 +171,10 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .searchbox .search{padding-right:44px}
 .search::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
 .search-clear{position:absolute;right:6px;top:5px;width:34px;height:34px;border:0;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:14px;display:grid;place-items:center}
+
+/* Notefeltet: Indtal · Kort og præcis · Gem */
+.composer{display:flex;flex-direction:column;gap:10px}
+.ai-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--velatir);background:var(--surface);color:var(--velatir);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500}
+.ai-btn:hover{background:var(--velatir-soft)}
+.ai-btn:disabled{opacity:.45;cursor:default}
+.small{font-size:13px;margin:0}

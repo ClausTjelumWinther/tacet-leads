@@ -2,7 +2,7 @@ import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
 import { KATEGORI, STAGES, addNote, errorText, moveNextStep, projectName, type Data } from "./data";
 import { Contact, Group, PersonRow, ProjectRow, Timeline, WhenChip } from "./parts";
-import { DictateButton } from "./Dictate";
+import NoteComposer, { saveTasks } from "./NoteComposer";
 
 export type FocusKey = { kind: "projekt" | "person"; id: string };
 
@@ -14,9 +14,10 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
   const [flash, setFlash] = useState<{ text: string; err?: boolean } | null>(null);
 
   // Kør en ændring, vis en kvittering, og hent frisk data bagefter.
-  async function run(action: () => Promise<void>, ok: string) {
+  // rethrow=true: fejlen sendes videre, så notefeltet beholder din tekst, hvis gemningen fejler.
+  async function run(action: () => Promise<void>, ok: string, rethrow = false) {
     try { await action(); setFlash({ text: ok }); await onChanged(); }
-    catch (e) { setFlash({ text: errorText(e), err: true }); }
+    catch (e) { setFlash({ text: errorText(e), err: true }); if (rethrow) throw e; }
   }
 
   const back = <button type="button" className="back" onClick={onBack}>← Tilbage til {tabLabel}</button>;
@@ -56,8 +57,11 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
                 <button type="button" className="btn" onClick={() => move(14)}>+2 uger</button>
               </div>
             </section>
-            <NoteBox key={p.id} placeholder="Fx: Kasper har budget fra januar" label="Gem note"
-              onSave={text => run(() => addNote("projekt", p.id, text), "Noten er gemt")} />
+            <section className="panel">
+              <label className="sec" htmlFor="note">Notér</label>
+              <NoteComposer key={p.id} id="note" placeholder="" saveLabel="Gem note" target={{ type: "projekt", id: p.id }}
+                onSave={(text, tasks) => run(async () => { await addNote("projekt", p.id, text); await saveTasks(tasks, { projekt_id: p.id }); }, "Noten er gemt", true)} />
+            </section>
             <section>
               <div className="ghead"><h2>Historik</h2><small>nyeste øverst</small></div>
               <Timeline noter={p.noter} />
@@ -94,8 +98,11 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
       {flashEl}
       <div className="fgrid">
         <div className="fmain">
-          <NoteBox key={x.id} placeholder="Hvad talte I om? Familie, interesser, hvad du lovede" label="Gem og sæt talt sammen til i dag"
-            onSave={text => run(() => addNote("person", x.id, text), "Noten er gemt")} />
+          <section className="panel">
+            <label className="sec" htmlFor="note">Notér</label>
+            <NoteComposer key={x.id} id="note" placeholder="" saveLabel="Gem og sæt talt sammen til i dag" target={{ type: "person", id: x.id }}
+              onSave={(text, tasks) => run(async () => { await addNote("person", x.id, text); await saveTasks(tasks, { person_id: x.id }); }, "Noten er gemt", true)} />
+          </section>
           <section>
             <div className="ghead"><h2>Det du ved om {x.navn.split(" ")[0]}</h2><small>nyeste øverst</small></div>
             <Timeline noter={x.noter} />
@@ -116,29 +123,5 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         </aside>
       </div>
     </div>
-  );
-}
-
-/** Notefeltet, med knap til at indtale. */
-function NoteBox({ placeholder, label, onSave }: { placeholder: string; label: string; onSave: (text: string) => Promise<void> }) {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [hint, setHint] = useState("");
-  async function save() {
-    if (!text.trim()) { setHint("Skriv noten først."); return; }
-    setBusy(true); setHint("");
-    await onSave(text);
-    setText(""); setBusy(false);
-  }
-  return (
-    <section className="panel">
-      <label className="sec" htmlFor="note">Notér</label>
-      <textarea id="note" placeholder={placeholder} value={text} onChange={e => setText(e.target.value)} />
-      <div className="acts">
-        <DictateButton value={text} onChange={setText} />
-        <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? "Gemmer…" : label}</button>
-        {hint && <span className="status err">{hint}</span>}
-      </div>
-    </section>
   );
 }

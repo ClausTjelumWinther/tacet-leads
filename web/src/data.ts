@@ -121,8 +121,9 @@ export interface Forslag {
 }
 
 /** Sender den indtalte tekst til edge-funktionen "struktur-note". Den skriver intet selv. */
-export async function structure(transkript: string): Promise<Forslag> {
-  const { data, error } = await supabase.functions.invoke("struktur-note", { body: { transkript, idag: today() } });
+/** Kender appen allerede personen/projektet (fast), skal Claude kun stramme teksten op og finde løfterne. */
+export async function structure(transkript: string, fast?: { type: "person" | "projekt"; id: string }): Promise<Forslag> {
+  const { data, error } = await supabase.functions.invoke("struktur-note", { body: { transkript, idag: today(), fast } });
   if (error) {
     // Funktionen svarer med {fejl: "..."} på dansk. Vi prøver at læse den ud af svaret.
     let fejl = "";

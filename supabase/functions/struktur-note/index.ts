@@ -27,7 +27,7 @@ const tool = {
       maal_type: { type: "string", enum: ["person", "projekt", "ny_person"], description: "Hvad noten skal gemmes på." },
       maal_id: { type: "string", description: "id fra listen. Udelades ved ny_person." },
       ny_person_navn: { type: "string", description: "Fulde navn, kun ved ny_person." },
-      note: { type: "string", description: "Renskrevet note på dansk i jeg-form, uden dato. Bevar ALLE konkrete detaljer (navne, familie, tal, aftaler)." },
+      note: { type: "string", description: "Kort og præcis note på dansk i jeg-form, uden dato. Fjern fyldord, gentagelser og talesprog, men bevar ALLE konkrete detaljer (navne, familie, interesser, tal, aftaler)." },
       opgaver: {
         type: "array",
         description: "Kun ting Claus selv har lovet eller skal gøre. Tom liste hvis ingen.",
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   const { data: roles } = await sb.from("user_roles").select("role").eq("role", "admin");
   if (!roles || roles.length === 0) return json({ fejl: "Kun for admin." }, 403);
 
-  let body: { transkript?: string; idag?: string };
+  let body: { transkript?: string; idag?: string; fast?: { type?: string; id?: string } };
   try { body = await req.json(); } catch { return json({ fejl: "Ugyldig forespørgsel." }, 400); }
   const transkript = (body.transkript ?? "").trim();
   const idag = /^\d{4}-\d{2}-\d{2}$/.test(body.idag ?? "") ? body.idag! : new Date().toISOString().slice(0, 10);
@@ -84,6 +84,16 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const projekter = (pr.data as any[]).map(p => `projekt | ${p.id} | ${p.firma?.firmanavn ?? p.produkt}${p.firma?.kontaktperson ? " | kontakt: " + p.firma.kontaktperson : ""} | ${p.stage}`);
 
+  // Alle kandidater med læsbart navn (bruges til at tjekke id'er og vise navnet i appen).
+  const alle = [
+    // deno-lint-ignore no-explicit-any
+    ...(pe.data as any[]).map(p => ({ type: "person", id: p.id, navn: p.navn + (p.firma ? ` · ${p.firma.firmanavn}` : "") })),
+    // deno-lint-ignore no-explicit-any
+    ...(pr.data as any[]).map(p => ({ type: "projekt", id: p.id, navn: p.firma?.firmanavn ?? p.produkt })),
+  ];
+  // Kender appen allerede målet, skal Claude kun stramme teksten op og finde løfterne.
+  const fast = body.fast ? alle.find(a => a.id === body.fast!.id && a.type === body.fast!.type) : undefined;
+
   const system = `Du hjælper Claus, en dansk AI-rådgiver og relationsmand, med at gemme noter efter møder.
 I dag er ${idag}. Regn relative datoer ("på fredag", "om en uge") om til YYYY-MM-DD ud fra det.
 
@@ -96,6 +106,7 @@ Vælg målet for noten:
 Opgaver er KUN ting, Claus selv har lovet eller skal gøre. Ikke ting, den anden person skal gøre.
 Brug kun id'er fra listen nedenfor. Opfind aldrig id'er.
 
+${fast ? `NOTEN HANDLER OM: ${fast.navn} (${fast.type}, id ${fast.id}). Brug præcis dette mål.\n` : ""}
 LISTE (type | id | navn | detaljer):
 ${[...personer, ...projekter].join("\n")}`;
 
@@ -135,13 +146,9 @@ ${[...personer, ...projekter].join("\n")}`;
     const forslag = use.input as any;
 
     // Tjek at id'et faktisk findes, og find et læsbart navn til appen.
-    const alle = [
-      // deno-lint-ignore no-explicit-any
-      ...(pe.data as any[]).map(p => ({ type: "person", id: p.id, navn: p.navn + (p.firma ? ` · ${p.firma.firmanavn}` : "") })),
-      // deno-lint-ignore no-explicit-any
-      ...(pr.data as any[]).map(p => ({ type: "projekt", id: p.id, navn: p.firma?.firmanavn ?? p.produkt })),
-    ];
-    if (forslag.maal_type !== "ny_person") {
+    if (fast) {
+      Object.assign(forslag, { maal_type: fast.type, maal_id: fast.id, maal_navn: fast.navn, sikker: true });
+    } else if (forslag.maal_type !== "ny_person") {
       const hit = alle.find(a => a.id === forslag.maal_id && a.type === forslag.maal_type);
       if (!hit) { forslag.maal_type = "ny_person"; forslag.sikker = false; forslag.ny_person_navn ??= ""; }
       else forslag.maal_navn = hit.navn;

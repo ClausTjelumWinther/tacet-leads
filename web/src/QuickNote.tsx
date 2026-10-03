@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addNote, createPerson, errorText, projectName, type Data } from "./data";
-import { DictateButton, canDictate } from "./Dictate";
+import { addNote, createPerson, projectName, type Data } from "./data";
+import NoteComposer, { saveTasks, type Task } from "./NoteComposer";
 
 type Target = { kind: "person" | "projekt"; id: string; label: string } | { kind: "ny"; label: string };
 
@@ -9,8 +9,6 @@ type Target = { kind: "person" | "projekt"; id: string; label: string } | { kind
 export default function QuickNote({ data, onClose, onSaved }: { data: Data; onClose: () => void; onSaved: () => Promise<void> }) {
   const [who, setWho] = useState("");
   const [target, setTarget] = useState<Target | null>(null);
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
   const whoRef = useRef<HTMLInputElement>(null);
 
@@ -38,19 +36,18 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
     return [...people, ...projs].slice(0, 6);
   }, [who, data]);
 
-  async function save() {
+  async function save(text: string, tasks: Task[]) {
     if (!target) { setMsg({ text: "Vælg hvem noten handler om.", err: true }); return; }
-    if (!text.trim()) { setMsg({ text: "Skriv noten først.", err: true }); return; }
-    setBusy(true); setMsg(null);
-    try {
-      if (target.kind === "ny") await createPerson(target.label, text);
-      else await addNote(target.kind, target.id, text);
-      await onSaved();
-      onClose();
-    } catch (e) {
-      setMsg({ text: errorText(e), err: true });
-      setBusy(false);
+    setMsg(null);
+    if (target.kind === "ny") {
+      const id = await createPerson(target.label, text);
+      await saveTasks(tasks, { person_id: id });
+    } else {
+      await addNote(target.kind, target.id, text);
+      await saveTasks(tasks, target.kind === "person" ? { person_id: target.id } : { projekt_id: target.id });
     }
+    await onSaved();
+    onClose();
   }
 
   return (
@@ -88,11 +85,8 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
               <button type="button" className="linkbtn" onClick={() => setTarget(null)}>Skift</button>
             </div>
             <label className="sec" htmlFor="qn-text">Hvad talte I om?</label>
-            <textarea id="qn-text" autoFocus value={text} onChange={e => setText(e.target.value)} placeholder={canDictate ? "Skriv, eller tryk på Indtal og fortæl" : "Skriv, eller brug mikrofonen på tastaturet"} />
-            <div className="acts">
-              <DictateButton value={text} onChange={setText} />
-              <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? "Gemmer…" : "Gem note"}</button>
-            </div>
+            <NoteComposer id="qn-text" autoFocus placeholder="" saveLabel="Gem note"
+              target={target.kind === "ny" ? null : { type: target.kind, id: target.id }} onSave={save} />
           </>
         )}
         {msg && <p className={msg.err ? "error" : "muted"}>{msg.text}</p>}
