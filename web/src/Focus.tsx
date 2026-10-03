@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, errorText, moveNextStep, projectName, type Data } from "./data";
-import { Contact, Group, PersonRow, ProjectRow, Timeline, WhenChip } from "./parts";
+import { KATEGORI, STAGES, addNote, errorText, haendelserFor, moveNextStep, projectName, type Data } from "./data";
+import { Activity, Contact, Group, PersonRow, ProjectRow, Timeline, WhenChip, boldenHosDig } from "./parts";
 import NoteComposer, { saveTasks } from "./NoteComposer";
 
 export type FocusKey = { kind: "projekt" | "person"; id: string };
@@ -28,6 +28,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
     if (!p) return <div className="focus">{back}<div className="empty">Projektet findes ikke længere.</div></div>;
     const people = data.personer.filter(x => p.virksomhed_id && x.virksomhed_id === p.virksomhed_id);
     const others = data.projekter.filter(q => p.virksomhed_id && q.virksomhed_id === p.virksomhed_id && q.id !== p.id);
+    const akt = haendelserFor(data, { projekt: p });
     const move = (n: number) => { const d = addDays(today(), n); run(() => moveNextStep(p.id, d), `Næste skridt er flyttet til ${short(d)}`); };
 
     return (
@@ -40,6 +41,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
             {p.firma?.kontaktperson && <span>{p.firma.kontaktperson.trim()}</span>}
             <span>{p.produkt}</span>
             {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}</span> : null}
+            {boldenHosDig(akt) && <span className="ball">Bolden er hos dig</span>}
           </div>
         </header>
         {flashEl}
@@ -69,6 +71,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           </div>
           <aside className="fside">
             <section className="panel"><div className="sec">Kontakt</div><Contact email={p.firma?.email ?? null} phone={p.firma?.mobilnummer ?? null} /></section>
+            <section className="panel"><div className="sec">Mails og møder</div><Activity items={akt} /></section>
             <Group title="Hos samme firma" count={people.length + others.length} empty="Ingen andre personer eller projekter endnu.">
               {people.map(x => <PersonRow key={x.id} x={x} onOpen={() => onOpen({ kind: "person", id: x.id })} />)}
               {others.map(q => <ProjectRow key={q.id} p={q} onOpen={() => onOpen({ kind: "projekt", id: q.id })} />)}
@@ -82,6 +85,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
   const x = data.personer.find(y => y.id === focusKey.id);
   if (!x) return <div className="focus">{back}<div className="empty">Personen findes ikke længere.</div></div>;
   const projs = data.projekter.filter(q => x.virksomhed_id && q.virksomhed_id === x.virksomhed_id);
+  const aktP = haendelserFor(data, { person: x });
   const colleagues = data.personer.filter(y => x.virksomhed_id && y.virksomhed_id === x.virksomhed_id && y.id !== x.id);
 
   return (
@@ -93,6 +97,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         <div className="fsub">
           {x.firma && <span>{x.firma.firmanavn.trim()}</span>}
           <span>{x.sidste_kontakt ? `Talt sammen ${short(x.sidste_kontakt)}` : "Ingen kontakt registreret"}</span>
+          {boldenHosDig(aktP) && <span className="ball">Bolden er hos dig</span>}
         </div>
       </header>
       {flashEl}
@@ -110,6 +115,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         </div>
         <aside className="fside">
           <section className="panel"><div className="sec">Kontakt</div><Contact email={x.email} phone={x.mobilnummer} /></section>
+          <section className="panel"><div className="sec">Mails og møder</div><Activity items={aktP} /></section>
           {projs.length > 0 && (
             <Group title="Projekter" count={projs.length}>
               {projs.map(q => <ProjectRow key={q.id} p={q} onOpen={() => onOpen({ kind: "projekt", id: q.id })} />)}

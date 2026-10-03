@@ -181,3 +181,9 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .ai-btn:hover{background:var(--velatir-soft)}
 .ai-btn:disabled{opacity:.45;cursor:default}
 .small{font-size:13px;margin:0}
+
+/* Mails og møder */
+.tl.act .pill{margin-right:6px;font-size:11px}
+.pill.t-mail_ind{background:rgba(224,160,48,.18)}
+.pill.t-moede,.pill.t-invitation{background:rgba(30,91,72,.14)}
+.ball{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(224,160,48,.2);font-size:13px;font-weight:600}

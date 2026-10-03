@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { kr, short, whenLabel } from "./dates";
-import { KATEGORI, STAGES, projectName, type Opgave, type Person, type Projekt } from "./data";
+import { KATEGORI, STAGES, projectName, type ClaudeForslag, type Haendelse, type Opgave, type Person, type Projekt } from "./data";
 
 // Små genbrugelige byggesten. Hver funktion her er en "komponent": den tager data ind og returnerer HTML.
 
@@ -107,5 +107,38 @@ export function Timeline({ noter }: { noter: string | null }) {
         return <li key={i}><span className="d">{m ? m[1] : ""}</span><span>{m ? m[2] : l}</span></li>;
       })}
     </ol>
+  );
+}
+
+const TYPE: Record<Haendelse["type"], string> = { mail_ind: "Mail ind", mail_ud: "Mail ud", moede: "Møde", invitation: "Invitation" };
+
+/** Mails, møder og invitationer fra morgen-gennemgangen. Kun fakta, dine egne noter står for sig. */
+export function Activity({ items }: { items: Haendelse[] }) {
+  if (!items.length) return <div className="empty tight">Ingen mails eller møder registreret endnu.</div>;
+  return (
+    <ol className="tl act">
+      {items.slice(0, 12).map(h => (
+        <li key={h.id}><span className="d">{short(h.dato)}</span>
+          <span><span className={`pill t-${h.type}`}>{TYPE[h.type]}</span> {h.titel}</span></li>
+      ))}
+    </ol>
+  );
+}
+
+/** Ligger bolden hos dig? Ja, hvis det seneste er en mail ind. */
+export const boldenHosDig = (items: Haendelse[]) => items.length > 0 && items[0].type === "mail_ind";
+
+/** Et forslag fra Claude med Ja og Nej. Intet ændres, før du trykker Ja. */
+export function ForslagRow({ f, onYes, onNo }: { f: ClaudeForslag; onYes: () => Promise<void>; onNo: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const go = (fn: () => Promise<void>) => async () => { setBusy(true); try { await fn(); } finally { setBusy(false); } };
+  return (
+    <div className="row static">
+      <span className="who">{f.tekst}</span>
+      <span className="side">
+        <button type="button" className="btn primary" disabled={busy} onClick={go(onYes)}>Ja</button>
+        <button type="button" className="btn" disabled={busy} onClick={go(onNo)}>Nej</button>
+      </span>
+    </div>
   );
 }

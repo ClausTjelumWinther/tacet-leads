@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { addDays, kr, today } from "./dates";
-import { ACTIVE, STAGES, completeTask, type Data, type Projekt, type Stage } from "./data";
-import { Group, PersonRow, ProjectRow, TaskRow } from "./parts";
+import { ACTIVE, STAGES, acceptForslag, completeTask, errorText, rejectForslag, type Data, type Projekt, type Stage } from "./data";
+import { ForslagRow, Group, PersonRow, ProjectRow, TaskRow } from "./parts";
 import type { FocusKey } from "./Focus";
 
 export type Tab = "idag" | "pipeline" | "netvaerk" | "velatir" | "personer";
@@ -58,7 +58,15 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     const tasks = data.opgaver
       .filter(o => hit(o.tekst, o.person?.navn, o.projekt?.firma?.firmanavn))
       .sort((a, b) => (a.forfald ?? "9999").localeCompare(b.forfald ?? "9999"));
+    // Kør et forslag og vis fejlen, hvis det går galt.
+    const doF = (fn: () => Promise<void>) => async () => { try { await fn(); await onChanged(); } catch (e) { alert(errorText(e)); } };
     body = (
+      <>
+      {data.forslag.length > 0 && (
+        <Group id="forslag" title="Forslag fra Claude" count={data.forslag.length}>
+          {data.forslag.map(f => <ForslagRow key={f.id} f={f} onYes={doF(() => acceptForslag(f))} onNo={doF(() => rejectForslag(f))} />)}
+        </Group>
+      )}
       <div className="grid split">
         <div>
           <Group id="forfaldent" title="Forfaldent" count={over.length} warn={over.length > 0} empty="Intet forfaldent. Du er ajour.">{over.map(pRow)}</Group>
@@ -71,6 +79,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
           <Group title="Aktive uden dato" count={nodate.length} empty="Alle aktive leads har en dato.">{nodate.map(pRow)}</Group>
         </div>
       </div>
+      </>
     );
   } else if (tab === "pipeline") {
     const col = (s: Stage) => {
