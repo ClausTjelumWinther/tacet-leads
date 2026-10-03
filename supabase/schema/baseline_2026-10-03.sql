@@ -46,7 +46,7 @@ create table public.projekter (
   virksomhed_id  uuid references public.virksomheder(id) on delete cascade,
   produkt        text not null,
   vaerdi         integer,               -- DKK
-  stage          text not null default 'lead',  -- lead, dialog, tilbud, kunde, tabt
+  stage          text not null default 'lead',  -- lead, dialog, tilbud, kunde, tabt, netvaerk
   dato           date,
   naeste_skridt  text,
   noter          text,
