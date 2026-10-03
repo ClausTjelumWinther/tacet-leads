@@ -3,14 +3,16 @@ import { addDays, kr, today } from "./dates";
 import { ACTIVE, STAGES, acceptForslag, completeTask, errorText, rejectForslag, type Data, type Projekt, type Stage } from "./data";
 import { ForslagRow, Group, PersonRow, ProjectRow, TaskRow } from "./parts";
 import type { FocusKey } from "./Focus";
+import Maal from "./Maal";
 
-export type Tab = "idag" | "pipeline" | "netvaerk" | "velatir" | "personer";
+export type Tab = "idag" | "pipeline" | "netvaerk" | "velatir" | "personer" | "maal";
 export const TABS: { key: Tab; label: string }[] = [
   { key: "idag", label: "I dag" },
   { key: "pipeline", label: "Pipeline" },
   { key: "netvaerk", label: "Netværk" },
   { key: "velatir", label: "Velatir" },
   { key: "personer", label: "Personer" },
+  { key: "maal", label: "Mål" },
 ];
 
 const byDate = (a: Projekt, b: Projekt) => (a.naeste_skridt_dato ?? "9999").localeCompare(b.naeste_skridt_dato ?? "9999");
@@ -35,6 +37,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     netvaerk: data.projekter.filter(p => p.stage === "netvaerk").length + data.personer.filter(x => x.kategori === "netvaerk").length,
     velatir: data.projekter.filter(p => p.velatir).length,
     personer: data.personer.filter(x => showPrivate || x.kategori !== "privat").length,
+    maal: data.arrangementer.filter(a => a.dato >= t).length,
   };
 
   let body;
@@ -82,6 +85,9 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
       </div>
       </>
     );
+  } else if (tab === "maal") {
+    // Mål har sin egen side, så I dag-fokus ikke forstyrres.
+    body = <Maal data={data} onOpen={onOpen} onChanged={onChanged} />;
   } else if (tab === "pipeline") {
     const col = (s: Stage) => {
       const rows = projekter.filter(p => p.stage === s).sort(byDate);

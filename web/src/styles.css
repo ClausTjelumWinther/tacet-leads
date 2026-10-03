@@ -195,3 +195,32 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .nextstep{display:flex;flex-direction:column;gap:10px}
 .nextstep .task-text{width:100%}
 .small{font-size:13px;margin:0}
+
+/* Mål */
+.maal-head{margin:4px 0 14px}
+.maal-fokus{font-family:var(--f-display);font-size:19px;font-weight:600;margin:4px 0 0;line-height:1.35}
+.maal-kort{margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
+.maal-tal{margin:0;font-size:15px}
+.maal-tal b{font-family:var(--f-display);font-size:34px;line-height:1;margin-right:2px}
+.meter{position:relative;height:12px;border-radius:999px;background:var(--line);overflow:visible}
+.meter-fill{height:100%;border-radius:999px;background:#E0A030;transition:width .3s}
+.meter-fill.ok{background:var(--accent)}
+.meter-mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.55}
+.maal-liste{list-style:none;margin:0;padding:0;font-size:14px}
+.maal-liste li{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.maal-liste .d,.arr .d{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:3.4em}
+.vurder{border-top:1px dashed var(--line);padding-top:8px}
+.vurder-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-size:14px}
+.arr{border-top:1px solid var(--line)}
+.arr.forbi .arr-navn{color:var(--muted)}
+.arr-head{all:unset;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;padding:10px 0;width:100%}
+.arr-navn{font-weight:600;font-size:14px}
+.arr-tal{grid-column:2;font-size:13px;color:var(--muted)}
+.arr-tal b{color:var(--ink)}
+.arr-liste{list-style:none;margin:0 0 10px;padding:0}
+.arr-liste li{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.arr-person{display:flex;gap:6px;align-items:center;min-width:0;overflow-wrap:anywhere}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:5px 8px;font-size:12px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--on-accent)}

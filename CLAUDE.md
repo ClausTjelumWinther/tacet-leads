@@ -17,6 +17,8 @@ Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer
 
 **Hændelser og forslag** (`haendelser`, `forslag`) fyldes af morgen-gennemgangen af mail og kalender (`docs/morgen-sync.md`), som kører hver morgen som planlagt opgave. `haendelser` er fakta (mail ind/ud, møder, invitationer: dato, emne, modpart) og må skrives uden ok. `forslag` er alt, der kræver Claus' ja (nye kontakter, nyt næste skridt, nye løfter); appen viser dem under *I dag* og udfører dem først ved Ja. Brug `haendelser` til "Hvor er vi med X?" og til at se, hvem bolden ligger hos.
 
+**Mål** (`maal`, `maalinger`, `arrangementer`, `deltagere`, `virksomheder.over20`) driver fanen *Mål*. Målene sættes pr. periode. Q4 2026 (1/10–23/12): fyld kalenderen i 2027. 24 dage booket i Q1 2027 er tilfredsstillende (14 t/uge), 36 er perfekt (21 t/uge); 12–16 spændende møder (virksomheder med over 20 funktionærer); løfter holdt inden 48 timer. Top 3 skal i denne periode prioritere det, der kan blive til et møde om 2027, over det, der er tættest på en ordre.
+
 **Personer** (`personer`) er Claus' relationsnoter om mennesker. Claus er relationsmand, og det vigtigste her er de små ting, han vil huske næste gang han møder folk: familie, interesser, hvad de talte om. `kategori` er `privat`, `netvaerk` eller `kunde`. **Private kontakter vises aldrig i pipeline, top 3 eller lister,** medmindre Claus spørger direkte til dem.
 
 **Opgaver** (`opgaver`) er små løfter og huskepunkter ("send Christian kontakt til Claus Haugaard"). De kan hænge på en person eller et projekt og bliver ved med at dukke op, indtil de er markeret `faerdig`. `items` er en indkøbsliste og hører ikke til leadsystemet. Rør den ikke.

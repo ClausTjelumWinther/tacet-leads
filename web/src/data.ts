@@ -15,7 +15,7 @@ export interface Projekt {
   naeste_skridt_dato: string | null;
   noter: string | null;
   velatir: boolean;
-  firma: { firmanavn: string; kontaktperson: string | null; email: string | null; mobilnummer: string | null } | null;
+  firma: { firmanavn: string; kontaktperson: string | null; email: string | null; mobilnummer: string | null; over20: boolean | null } | null;
 }
 
 export interface Person {
@@ -60,12 +60,32 @@ export interface ClaudeForslag {
   projekt_id: string | null;
 }
 
+// ---------- Mål ----------
+export interface Maal {
+  id: string; periode: string; start: string; slut: string; fokus: string | null;
+  noegle: string; titel: string; maal: number | null; perfekt: number | null; enhed: string | null; sortering: number;
+}
+export interface Maaling { dato: string; noegle: string; vaerdi: number; detaljer: { dato?: string; titel?: string; dage?: number }[] }
+export interface Arrangement { id: string; navn: string; dato: string; sted: string | null }
+export type DeltagerStatus = "inviteret" | "tilmeldt" | "afbud" | "moedt";
+export interface Deltager {
+  id: string; arrangement_id: string; navn: string; email: string | null;
+  person_id: string | null; projekt_id: string | null; status: DeltagerStatus;
+}
+/** Alle løfter (også de klarede), så vi kan måle "holdt inden 48 timer". */
+export interface LoefteStat { oprettet: string; faerdig: boolean; faerdig_dato: string | null }
+
 export interface Data {
   projekter: Projekt[];
   personer: Person[];
   opgaver: Opgave[];
   haendelser: Haendelse[];
   forslag: ClaudeForslag[];
+  maal: Maal[];
+  maalinger: Maaling[];
+  arrangementer: Arrangement[];
+  deltagere: Deltager[];
+  loefter: LoefteStat[];
 }
 
 export const STAGES: Record<Stage, string> = {
@@ -78,10 +98,10 @@ export const KATEGORI: Record<Person["kategori"], string> = { privat: "Privat", 
 
 /** Henter alt på én gang. Navnet før kolon ("firma:") omdøber den tilknyttede tabel. */
 export async function loadAll(): Promise<Data> {
-  const [p, pe, o, h, f] = await Promise.all([
+  const [p, pe, o, h, f, m, ml, ar, de, lo] = await Promise.all([
     supabase.from("projekter").select(
       "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, " +
-      "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer)"),
+      "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20)"),
     supabase.from("personer").select(
       "id, navn, kategori, virksomhed_id, email, mobilnummer, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
     supabase.from("opgaver").select(
@@ -89,8 +109,13 @@ export async function loadAll(): Promise<Data> {
     supabase.from("haendelser").select("id, dato, type, titel, email, person_id, projekt_id")
       .order("dato", { ascending: false }).limit(1000),
     supabase.from("forslag").select("id, type, tekst, data, person_id, projekt_id").eq("status", "aaben").order("oprettet"),
+    supabase.from("maal").select("*").order("sortering"),
+    supabase.from("maalinger").select("dato, noegle, vaerdi, detaljer").order("dato", { ascending: false }).limit(200),
+    supabase.from("arrangementer").select("id, navn, dato, sted").order("dato"),
+    supabase.from("deltagere").select("id, arrangement_id, navn, email, person_id, projekt_id, status").order("navn"),
+    supabase.from("opgaver").select("oprettet, faerdig, faerdig_dato"),
   ]);
-  const err = p.error || pe.error || o.error || h.error || f.error;
+  const err = p.error || pe.error || o.error || h.error || f.error || m.error || ml.error || ar.error || de.error || lo.error;
   if (err) throw err;
   return {
     projekter: (p.data ?? []) as unknown as Projekt[],
@@ -98,6 +123,11 @@ export async function loadAll(): Promise<Data> {
     opgaver: (o.data ?? []) as unknown as Opgave[],
     haendelser: (h.data ?? []) as Haendelse[],
     forslag: (f.data ?? []) as ClaudeForslag[],
+    maal: (m.data ?? []) as Maal[],
+    maalinger: (ml.data ?? []) as Maaling[],
+    arrangementer: (ar.data ?? []) as Arrangement[],
+    deltagere: (de.data ?? []) as Deltager[],
+    loefter: (lo.data ?? []) as LoefteStat[],
   };
 }
 
@@ -219,6 +249,19 @@ export function haendelserFor(data: Data, k: { person?: Person; projekt?: Projek
   return data.haendelser.filter(h =>
     (k.person && (h.person_id === k.person.id || (!!mail && h.email?.toLowerCase() === mail))) ||
     (k.projekt && (h.projekt_id === k.projekt.id || (!!h.person_id && kolleger.includes(h.person_id)))));
+}
+
+// ---------- Mål: små rettelser fra fanen ----------
+
+export async function setDeltagerStatus(id: string, status: DeltagerStatus): Promise<void> {
+  const { error } = await supabase.from("deltagere").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Over 20 funktionærer? true/false, eller null hvis du ikke ved det. */
+export async function setOver20(virksomhedId: string, over20: boolean | null): Promise<void> {
+  const { error } = await supabase.from("virksomheder").update({ over20 }).eq("id", virksomhedId);
+  if (error) throw error;
 }
 
 // ---------- Hjælpere ----------
