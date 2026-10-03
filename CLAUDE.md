@@ -116,6 +116,8 @@ Siden læser live fra Supabase via Claus' egen connector (`mcp`-capability, kun 
 
 ## Web-appen (web/)
 
+Live på **https://puls.tacet.dk** (Vercel, bygges automatisk ved push til `main`).
+
 `web/` er Claus' egen app (Vite + React + TypeScript + Supabase JS), kun til ham. Den logger ind med hans Supabase-bruger og respekterer RLS. Claus bygger den for at lære, så **forklar kort, hvad du ændrer og hvorfor**, og hold koden letlæselig med danske kommentarer. Se `web/README.md` for opbygningen. Kør altid `npm run build` i `web/` før commit; den tjekker også typerne.
 
 ## Mappestruktur

@@ -1,6 +1,8 @@
 # Puls (web-app)
 
-Claus' egen app til leads, netværk og løfter. Kun til ham. Den læser og skriver direkte i Supabase-databasen `tacet-app`.
+Claus' egen app til leads, netværk og løfter. Kun til ham.
+
+Live på **https://puls.tacet.dk**. Den læser og skriver direkte i Supabase-databasen `tacet-app`.
 
 ## Sådan hænger koden sammen
 
