@@ -109,11 +109,17 @@ Sammenlign hvert aktivt projekt med Gmail og kalender. Lav en liste med foreslå
 
 Alle tekster, der skal sendes i Claus' navn, følger `docs/skrivestil.md`.
 
+## Overblikket (Puls)
+
+`app/puls.html` er Claus' visuelle overblik, publiceret som artifact: https://claude.ai/artifact/EE1LdowvSTQYhRBcj9VDwH
+Siden læser live fra Supabase via Claus' egen connector (`mcp`-capability, kun `execute_sql`), så der ligger ingen data i selve siden. Ret i filen og publicér med samme URL (`url`-parameteren), så linket bevares. Ændres skemaet, skal `LOAD`-forespørgslen i siden følge med.
+
 ## Mappestruktur
 
 ```
 CLAUDE.md                  ← denne fil
 docs/skrivestil.md         ← Claus' stilprofil
+app/puls.html              ← overblikket, publiceret som artifact
 supabase/schema/           ← øjebliksbillede af skemaet (kun dokumentation)
 supabase/migrations/       ← alle ændringer, i rækkefølge
 ```
