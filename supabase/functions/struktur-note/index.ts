@@ -99,17 +99,37 @@ Brug kun id'er fra listen nedenfor. Opfind aldrig id'er.
 LISTE (type | id | navn | detaljer):
 ${[...personer, ...projekter].join("\n")}`;
 
+  // Prøv den stærke model først. Er den ikke tilgængelig på nøglen, så brug den hurtige,
+  // som indkøbslistens "kategoriser" allerede bruger med samme nøgle.
+  const MODELLER = ["claude-sonnet-5-5", "claude-haiku-4-5-20251001"];
+  const ask = (model: string) => client.messages.create({
+    model,
+    max_tokens: 1500,
+    system,
+    // deno-lint-ignore no-explicit-any
+    tools: [tool as any],
+    tool_choice: { type: "tool", name: "gem_note" },
+    messages: [{ role: "user", content: `Claus har indtalt:\n\n"""${transkript}"""` }],
+  });
+
   try {
-    const msg = await client.messages.create({
-      model: "claude-sonnet-5-5",
-      max_tokens: 1500,
-      system,
-      // deno-lint-ignore no-explicit-any
-      tools: [tool as any],
-      tool_choice: { type: "tool", name: "gem_note" },
-      messages: [{ role: "user", content: `Claus har indtalt:\n\n"""${transkript}"""` }],
-    });
-    const use = msg.content.find(c => c.type === "tool_use");
+    // deno-lint-ignore no-explicit-any
+    let msg: any = null;
+    let sidsteFejl: unknown = null;
+    for (const model of MODELLER) {
+      try { msg = await ask(model); break; }
+      catch (e) {
+        sidsteFejl = e;
+        // deno-lint-ignore no-explicit-any
+        const status = (e as any)?.status;
+        console.error(`Claude-fejl med ${model}:`, status, (e as Error).message);
+        // Kun "model findes ikke / ingen adgang" giver mening at prøve igen med en anden model.
+        if (status !== 404 && status !== 403 && status !== 400) throw e;
+      }
+    }
+    if (!msg) throw sidsteFejl;
+    // deno-lint-ignore no-explicit-any
+    const use = msg.content.find((c: any) => c.type === "tool_use");
     if (!use || use.type !== "tool_use") return json({ fejl: "Claude svarede ikke som forventet." }, 502);
     // deno-lint-ignore no-explicit-any
     const forslag = use.input as any;
@@ -129,7 +149,12 @@ ${[...personer, ...projekter].join("\n")}`;
     return json({ forslag });
   } catch (e) {
     const m = (e as Error).message ?? "";
-    if (/api[_ -]?key|authentication|401/i.test(m)) return json({ fejl: "API-nøglen til Claude mangler eller er ugyldig i Supabase." }, 500);
-    return json({ fejl: "Claude kunne ikke sortere noten lige nu. Prøv igen." }, 502);
+    // deno-lint-ignore no-explicit-any
+    const status = (e as any)?.status;
+    console.error("struktur-note fejlede:", status, m);
+    if (status === 401 || /api[_ -]?key|authentication/i.test(m)) return json({ fejl: "API-nøglen til Claude mangler eller er ugyldig i Supabase." }, 500);
+    if (/credit|billing|balance/i.test(m)) return json({ fejl: "Claude-kontoen mangler kredit. Fyld op på console.anthropic.com." }, 502);
+    if (status === 429) return json({ fejl: "Claude har travlt lige nu. Prøv igen om et øjeblik." }, 502);
+    return json({ fejl: `Claude kunne ikke sortere noten (${status ?? "ukendt"}): ${m.slice(0, 160)}` }, 502);
   }
 });
