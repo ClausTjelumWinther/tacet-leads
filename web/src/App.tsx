@@ -39,6 +39,8 @@ function Shell() {
   const [tab, setTab] = useState<Tab>(readTab);
   const [focus, setFocus] = useState<FocusKey | null>(null);
   const [quick, setQuick] = useState(false);
+  // Søgeteksten bor her, så den bliver stående, når du åbner et fokuskort og går tilbage.
+  const [query, setQuery] = useState("");
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -92,7 +94,7 @@ function Shell() {
       {!data && !error && <div className="loading"><b>Henter dine leads</b>Et øjeblik.</div>}
       {data && (focus
         ? <Focus data={data} focusKey={focus} tabLabel={TABS.find(t => t.key === tab)!.label} onBack={closeFocus} onOpen={openFocus} onChanged={reload} />
-        : <Lists data={data} tab={tab} onTab={chooseTab} onOpen={openFocus} onChanged={reload} />)}
+        : <Lists data={data} tab={tab} onTab={chooseTab} onOpen={openFocus} onChanged={reload} query={query} setQuery={setQuery} />)}
       {loadedAt && (
         <footer className="foot">
           Hentet {loadedAt.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}

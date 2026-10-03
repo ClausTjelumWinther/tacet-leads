@@ -15,14 +15,14 @@ export const TABS: { key: Tab; label: string }[] = [
 
 const byDate = (a: Projekt, b: Projekt) => (a.naeste_skridt_dato ?? "9999").localeCompare(b.naeste_skridt_dato ?? "9999");
 
-export default function Lists({ data, tab, onTab, onOpen, onChanged }:
-  { data: Data; tab: Tab; onTab: (t: Tab) => void; onOpen: (k: FocusKey) => void; onChanged: () => Promise<void> }) {
-  const [query, setQuery] = useState("");
+export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQuery }:
+  { data: Data; tab: Tab; onTab: (t: Tab) => void; onOpen: (k: FocusKey) => void; onChanged: () => Promise<void>;
+    query: string; setQuery: (q: string) => void }) {
   const [showPrivate, setShowPrivate] = useState(false);
   const t = today(), w = addDays(t, 6);
 
   // Søgningen virker på tværs af alle faner.
-  const q = query.toLowerCase();
+  const q = query.trim().toLowerCase();
   const hit = (...f: (string | null | undefined)[]) => !q || f.some(x => x && x.toLowerCase().includes(q));
   const projekter = data.projekter.filter(p => hit(p.firma?.firmanavn, p.firma?.kontaktperson, p.naeste_skridt, p.produkt));
   const personer = data.personer.filter(x => hit(x.navn, x.firma?.firmanavn, x.noter));
@@ -38,7 +38,19 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged }:
   };
 
   let body;
-  if (tab === "idag") {
+  if (q) {
+    // Når du søger, leder vi i alt – uanset fane. Private kontakter tages med, fordi du selv har spurgt efter dem.
+    const ppl = personer.slice().sort((a, b) => a.navn.localeCompare(b.navn, "da"));
+    const projs = projekter.slice().sort((a, b) => (a.stage === "tabt" ? 1 : 0) - (b.stage === "tabt" ? 1 : 0) || byDate(a, b));
+    body = (
+      <div className="grid split">
+        <Group title="Personer" count={ppl.length} empty="Ingen personer matcher.">
+          {ppl.map(x => <PersonRow key={x.id} x={x} onOpen={() => onOpen({ kind: "person", id: x.id })} />)}
+        </Group>
+        <Group title="Firmaer og projekter" count={projs.length} empty="Ingen firmaer eller projekter matcher.">{projs.map(pRow)}</Group>
+      </div>
+    );
+  } else if (tab === "idag") {
     const live = projekter.filter(p => p.stage !== "tabt");
     const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).sort(byDate);
     const soon = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= w).sort(byDate);
@@ -111,7 +123,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged }:
           </button>
         ))}
       </nav>
-      <input className="search" type="search" placeholder="Søg i firma, person eller næste skridt" value={query} onChange={e => setQuery(e.target.value)} />
+      <input className="search" type="search" placeholder="Søg efter person, firma eller næste skridt" value={query} onChange={e => setQuery(e.target.value)} />
       {body}
     </>
   );
