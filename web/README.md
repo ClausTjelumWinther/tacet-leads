@@ -20,6 +20,7 @@ Læs filerne i denne rækkefølge, så giver det mening:
 | `src/Focus.tsx` | Fokuskortet for én person eller ét projekt. |
 | `src/QuickNote.tsx` | "+ Note"-knappen: vælg person og skriv selv. |
 | `src/VoiceNote.tsx` | Mikrofonen: lyt → Claude sorterer → du godkender og gemmer. |
+| `src/Dictate.tsx` | "Indtal"-knappen ved notefelterne. Bruger browserens talegenkendelse, virker også på PC. |
 | `../supabase/functions/struktur-note/` | Funktionen i Supabase, der beder Claude finde personen, rense noten og finde dine løfter. Den skriver intet selv. |
 | `src/parts.tsx` | Små byggesten, der går igen: rækker, datochips, tidslinje, kontakt. |
 | `src/styles.css` | Hele designet. Farverne står som tokens øverst. |

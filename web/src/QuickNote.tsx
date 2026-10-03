@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addNote, createPerson, errorText, projectName, type Data } from "./data";
+import { DictateButton, canDictate } from "./Dictate";
 
 type Target = { kind: "person" | "projekt"; id: string; label: string } | { kind: "ny"; label: string };
 
@@ -87,8 +88,9 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
               <button type="button" className="linkbtn" onClick={() => setTarget(null)}>Skift</button>
             </div>
             <label className="sec" htmlFor="qn-text">Hvad talte I om?</label>
-            <textarea id="qn-text" autoFocus value={text} onChange={e => setText(e.target.value)} placeholder="Tryk på mikrofonen på tastaturet og fortæl" />
+            <textarea id="qn-text" autoFocus value={text} onChange={e => setText(e.target.value)} placeholder={canDictate ? "Skriv, eller tryk på Indtal og fortæl" : "Skriv, eller brug mikrofonen på tastaturet"} />
             <div className="acts">
+              <DictateButton value={text} onChange={setText} />
               <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? "Gemmer…" : "Gem note"}</button>
             </div>
           </>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
 import { KATEGORI, STAGES, addNote, errorText, moveNextStep, projectName, type Data } from "./data";
 import { Contact, Group, PersonRow, ProjectRow, Timeline, WhenChip } from "./parts";
+import { DictateButton } from "./Dictate";
 
 export type FocusKey = { kind: "projekt" | "person"; id: string };
 
@@ -118,7 +119,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
   );
 }
 
-/** Notefeltet. Tip: brug mikrofonen på telefonens tastatur til at indtale. */
+/** Notefeltet, med knap til at indtale. */
 function NoteBox({ placeholder, label, onSave }: { placeholder: string; label: string; onSave: (text: string) => Promise<void> }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -134,6 +135,7 @@ function NoteBox({ placeholder, label, onSave }: { placeholder: string; label: s
       <label className="sec" htmlFor="note">Notér</label>
       <textarea id="note" placeholder={placeholder} value={text} onChange={e => setText(e.target.value)} />
       <div className="acts">
+        <DictateButton value={text} onChange={setText} />
         <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? "Gemmer…" : label}</button>
         {hint && <span className="status err">{hint}</span>}
       </div>

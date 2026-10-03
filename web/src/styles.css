@@ -157,3 +157,9 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
   @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--warn) 45%,transparent)}100%{box-shadow:0 0 0 18px transparent}}
 }
 .linkbtn:disabled{opacity:.45;cursor:default}
+
+/* Diktér-knappen ved notefelterne */
+.dictate{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500}
+.dictate:hover{background:var(--accent-soft)}
+.dictate.on{background:var(--warn);border-color:var(--warn);color:#fff}
+@media (prefers-reduced-motion:no-preference){ .dictate.on{animation:pulse 1.4s ease-out infinite} }
