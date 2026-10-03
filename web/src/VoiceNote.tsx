@@ -247,7 +247,8 @@ function Picker({ data, initial, hint, onPick }: { data: Data; initial: string; 
   return (
     <div className="picker">
       {hint && <p className="warn-hint">Claude er i tvivl: {hint}</p>}
-      <input className="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Søg person eller firma" aria-label="Søg person eller firma" />
+      <input className="search" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Søg person eller firma" aria-label="Søg person eller firma"
+        autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" />
       <div className="suggest">
         {hits.map(h => (
           <button type="button" key={h.type + ("id" in h ? h.id : "")} className="row" onClick={() => onPick(h)}>

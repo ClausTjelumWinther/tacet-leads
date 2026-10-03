@@ -109,11 +109,15 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 
 /* Hurtig note: knap nederst og et ark, der glider op */
 
-.sheet-bg{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;z-index:10}
-.sheet{background:var(--bg);width:100%;max-width:640px;border-radius:16px 16px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:90vh;overflow:auto}
-@media (min-width:700px){ .sheet-bg{align-items:center} .sheet{border-radius:16px} }
-.sheet-head{display:flex;justify-content:space-between;align-items:center}
-.sheet-head h2{font-size:20px}
+/* På telefonen fylder arket hele skærmen, så tastaturet ikke klemmer det. På computeren er det en boks i midten. */
+.sheet-bg{position:fixed;inset:0;background:var(--bg);z-index:10;overflow:auto;-webkit-overflow-scrolling:touch}
+.sheet{background:var(--bg);width:100%;min-height:100%;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(32px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+@media (min-width:700px){
+  .sheet-bg{background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:24px}
+  .sheet{min-height:0;max-width:640px;max-height:90vh;overflow:auto;border-radius:16px;padding:24px}
+}
+.sheet-head h2{font-size:24px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:4px}
 .suggest{display:flex;flex-direction:column}
 .chosen{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;background:var(--accent-soft);border-radius:8px}
 

@@ -23,7 +23,12 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
   // Forslag: personer først (det er dem, man oftest har talt med), derefter firmaer.
   const suggestions = useMemo(() => {
     const q = who.trim().toLowerCase();
-    if (!q) return [];
+    // Uden søgning: vis de personer, du senest har talt med.
+    if (!q) return data.personer
+      .filter(x => x.sidste_kontakt)
+      .sort((a, b) => (b.sidste_kontakt ?? "").localeCompare(a.sidste_kontakt ?? ""))
+      .slice(0, 5)
+      .map(x => ({ kind: "person", id: x.id, label: x.navn + (x.firma ? ` · ${x.firma.firmanavn.trim()}` : "") }) as Target);
     const people: Target[] = data.personer.filter(x => x.navn.toLowerCase().includes(q))
       .map(x => ({ kind: "person", id: x.id, label: x.navn + (x.firma ? ` · ${x.firma.firmanavn.trim()}` : "") }));
     const projs: Target[] = data.projekter.filter(p => p.stage !== "tabt" &&
@@ -58,7 +63,9 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
         {!target ? (
           <>
             <label className="sec" htmlFor="qn-who">Hvem har du talt med?</label>
-            <input id="qn-who" ref={whoRef} className="search" value={who} onChange={e => setWho(e.target.value)} placeholder="Navn eller firma" autoComplete="off" />
+            <input id="qn-who" ref={whoRef} className="search" type="search" value={who} onChange={e => setWho(e.target.value)}
+              placeholder="Søg navn eller firma" autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" />
+            {!who.trim() && suggestions.length > 0 && <div className="sec">Senest talt med</div>}
             <div className="suggest">
               {suggestions.map(s => (
                 <button type="button" key={s.kind + ("id" in s ? s.id : "")} className="row" onClick={() => setTarget(s)}>
