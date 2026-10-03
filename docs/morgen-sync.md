@@ -11,7 +11,7 @@ Supabase-projekt: `vdebqppfkvcqjytbuhny`. Claus' adresse: claus@tacet.dk. Datoer
 - **Ingen mailindhold i databasen.** Kun dato, retning, emne (maks. 80 tegn, uden "Re:"/"SV:"/"Fwd:") og modpartens adresse.
 - **Rør aldrig** `stage`, `vaerdi`, `naeste_skridt`, `noter` eller `opgaver` direkte. Ændringer af næste skridt og nye løfter bliver til `forslag`.
 - **Slet aldrig rækker.** Brug `on conflict (kilde) do nothing`, så en kørsel kan gentages uden dubletter.
-- Den eneste direkte ændring ud over `haendelser` og `forslag` er `personer.sidste_kontakt`, og kun fremad i tid.
+- De eneste direkte ændringer ud over `haendelser` og `forslag` er `personer.sidste_kontakt` (kun fremad i tid) og tomme mobilnumre (trin 5b).
 
 ## Trin
 
@@ -56,6 +56,9 @@ Hører adressen til en kendt virksomhed, så sæt `virksomhed_id` og `kategori` 
 
 ### 5. Sidst talt med
 For kendte personer med mail ind/ud eller møde: `update personer set sidste_kontakt = '<dato>' where id = '<id>' and (sidste_kontakt is null or sidste_kontakt < '<dato>');`
+
+### 5b. Mobilnumre fra signaturer
+Mangler en kendt kontakt et nummer (`personer.mobilnummer` eller `virksomheder.mobilnummer` er tom), og står der et i signaturen i en mail, personen selv har sendt, så skriv det ind i formatet `+45 12 34 56 78`. Foretræk mobil frem for omstilling. Overskriv aldrig et nummer, der allerede står der, og brug aldrig numre fra citeret tekst (fx Claus' eget +45 26 73 70 48).
 
 ### 6. Næste skridt og løfter → forslag
 Kun når det er tydeligt:
