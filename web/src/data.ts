@@ -65,7 +65,7 @@ export interface Maal {
   id: string; periode: string; start: string; slut: string; fokus: string | null;
   noegle: string; titel: string; maal: number | null; perfekt: number | null; enhed: string | null; sortering: number;
 }
-export interface Maaling { dato: string; noegle: string; vaerdi: number; detaljer: { dato?: string; titel?: string; dage?: number }[] }
+export interface Maaling { dato: string; noegle: string; vaerdi: number; detaljer: { dato?: string; titel?: string; dage?: number; timer?: number }[] }
 export interface Arrangement { id: string; navn: string; dato: string; sted: string | null }
 export type DeltagerStatus = "inviteret" | "tilmeldt" | "afbud" | "moedt";
 export interface Deltager {

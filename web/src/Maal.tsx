@@ -35,8 +35,9 @@ export default function Maal({ data, onOpen, onChanged }: { data: Data; onOpen: 
       </section>
       <div className="grid split">
         <div>
-          {get("dage_q1_2027") && <Booket m={get("dage_q1_2027")!} data={data} />}
-          {get("spaendende_moeder") && <Moeder m={get("spaendende_moeder")!} data={data} start={start} slut={slut} onOpen={onOpen}
+          {/* Booket tid i næste kvartal. Måles i timer (sådan fakturerer du), tidligere i dage. */}
+          {(get("timer_q1_2027") ?? get("dage_q1_2027")) && <Booket m={(get("timer_q1_2027") ?? get("dage_q1_2027"))!} data={data} uger={uger} />}
+          {get("spaendende_moeder") && <Moeder m={get("spaendende_moeder")!} data={data} start={start} slut={slut} uger={uger} onOpen={onOpen}
             onOver20={(id, v) => run(() => setOver20(id, v))} />}
         </div>
         <div>
@@ -50,10 +51,11 @@ export default function Maal({ data, onOpen, onChanged }: { data: Data; onOpen: 
 
 /** Bjælke fra 0 til "perfekt" med en streg ved "tilfredsstillende". */
 function Meter({ value, m }: { value: number; m: MaalT }) {
-  const top = m.perfekt || m.maal || 1;
+  const maal = Number(m.maal), perfekt = Number(m.perfekt);
+  const top = perfekt || maal || 1;
   const pct = Math.min(100, (value / top) * 100);
-  const mark = m.maal && m.perfekt ? (m.maal / m.perfekt) * 100 : null;
-  const ok = m.maal != null && value >= m.maal;
+  const mark = maal && perfekt ? (maal / perfekt) * 100 : null;
+  const ok = !!maal && value >= maal;
   return (
     <div className="meter" role="img" aria-label={`${value} af ${m.maal ?? top} ${m.enhed ?? ""}`}>
       <div className={`meter-fill${ok ? " ok" : ""}`} style={{ width: `${pct}%` }} />
@@ -71,21 +73,28 @@ function Tal({ value, m, suffix }: { value: number | string; m: MaalT; suffix?: 
   );
 }
 
-// ---------- 1. Dage booket i Q1 2027 ----------
-function Booket({ m, data }: { m: MaalT; data: Data }) {
+// ---------- 1. Booket tid i Q1 2027 ----------
+const TIMEPRIS = 1500; // kr. pr. time, som hos KEN
+
+function Booket({ m, data }: { m: MaalT; data: Data; uger: number }) {
   const seneste = data.maalinger.find(x => x.noegle === m.noegle);
-  const v = seneste?.vaerdi ?? 0;
+  const v = Number(seneste?.vaerdi ?? 0);
+  const timer = m.enhed === "timer";
   return (
     <section className="panel maal-kort">
       <div className="sec">{m.titel}</div>
       <Tal value={fmt(v)} m={m} />
       <Meter value={v} m={m} />
       <p className="muted small">
-        {seneste ? `Talt i kalenderen ${short(seneste.dato)}.` : "Ikke talt endnu."} 21 timer om ugen = perfekt, 14 = tilfredsstillende.
+        {timer && <>≈ {kr(v * TIMEPRIS)} · målet er {kr(Number(m.maal) * TIMEPRIS)}, perfekt {kr(Number(m.perfekt) * TIMEPRIS)}. </>}
+        {seneste ? `Talt i kalenderen ${short(seneste.dato)}.` : "Ikke talt endnu."} 14 t/uge = tilfredsstillende, 21 t/uge = perfekt.
       </p>
       {seneste && seneste.detaljer.length > 0 && (
         <ul className="maal-liste">
-          {seneste.detaljer.map((d, i) => <li key={i}><span className="d">{d.dato ? short(d.dato) : ""}</span> {d.titel} {d.dage ? <span className="muted">· {fmt(d.dage)} d</span> : null}</li>)}
+          {seneste.detaljer.map((d, i) => (
+            <li key={i}><span className="d">{d.dato ? short(d.dato) : ""}</span> {d.titel}
+              {d.timer ? <span className="muted"> · {fmt(d.timer)} t</span> : d.dage ? <span className="muted"> · {fmt(d.dage)} d</span> : null}</li>
+          ))}
         </ul>
       )}
     </section>
@@ -93,8 +102,8 @@ function Booket({ m, data }: { m: MaalT; data: Data }) {
 }
 
 // ---------- 2. Spændende møder ----------
-function Moeder({ m, data, start, slut, onOpen, onOver20 }: {
-  m: MaalT; data: Data; start: string; slut: string; onOpen: (k: FocusKey) => void;
+function Moeder({ m, data, start, slut, uger, onOpen, onOver20 }: {
+  m: MaalT; data: Data; start: string; slut: string; uger: number; onOpen: (k: FocusKey) => void;
   onOver20: (virksomhedId: string, v: boolean) => void;
 }) {
   const t = today();
@@ -120,7 +129,7 @@ function Moeder({ m, data, start, slut, onOpen, onOver20 }: {
       <div className="sec">{m.titel}</div>
       <Tal value={spaendende.length} m={m} />
       <Meter value={spaendende.length} m={m} />
-      <p className="muted small">Denne uge: {denneUge}. Takt til målet: 1–2 om ugen.</p>
+      <p className="muted small">Denne uge: {denneUge}. {takt(Number(m.maal) - spaendende.length, uger)}</p>
       {spaendende.length > 0 && (
         <ul className="maal-liste">
           {spaendende.map(h => (
@@ -220,5 +229,15 @@ function Arrangementer({ data, onStatus }: { data: Data; onStatus: (d: Deltager,
     </section>
   );
 }
+
+/** "Takt: 1 om ugen" ud fra hvor mange der mangler, og hvor mange uger der er tilbage. */
+function takt(mangler: number, uger: number): string {
+  if (mangler <= 0) return "Målet er nået.";
+  if (uger <= 0) return `${mangler} mangler.`;
+  const pr = mangler / uger;
+  return `Takt til målet: ${pr < 1 ? `1 hver ${Math.round(1 / pr)}. uge` : `${Math.ceil(pr)} om ugen`}.`;
+}
+
+const kr = (n: number) => new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 }).format(n) + " kr.";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
