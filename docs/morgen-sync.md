@@ -50,6 +50,8 @@ on conflict (kilde) do nothing;
 - **Timer booket i Q1 2027:** gennemgå kalenderen 1/1–31/3 2027. Tæl kundearbejde: begivenheder med deltagere fra kendte kunder/leads eller et kendt firmanavn i titlen (ikke ski, privat, træning, BB5000 o.l.). Læg varigheden sammen i timer (afrundet til nærmeste halve). Skriv:
   `insert into maalinger (dato, noegle, vaerdi, detaljer) values ('<i dag>', 'timer_q1_2027', <timer>, '[{"dato":"2027-01-14","titel":"KEN workshop","timer":3.5}]') on conflict (dato, noegle) do update set vaerdi = excluded.vaerdi, detaljer = excluded.detaljer;`
 - **Arrangementer:** tabellen `arrangementer` har netværksmøderne. Når Claus inviterer nogen til et af dem, så tilføj en række i `deltagere` (status `inviteret`, `kilde = 'inv:<arrangement-id>:<email>'`, `on conflict do nothing`). Et klart ja i en mail = `tilmeldt`, et klart nej = `afbud`. Sæt aldrig `moedt`, det gør Claus selv.
+- **LinkedIn-opslag:** LinkedIn sender ingen mails om Claus' egne opslag, så de registreres af Claus selv (knap i appen eller i chatten). Gennemgangen rører ikke `opslag`.
+- **Gæst eller vært:** ved arrangementer med `rolle = 'gaest'` styrer Claus ikke tilmeldingerne. Tilføj ikke inviterede dér.
 - **Over 20 funktionærer:** sæt aldrig `virksomheder.over20` selv. Claus svarer Ja/Nej i appen.
 
 ### 4. Ukendte personer → forslag

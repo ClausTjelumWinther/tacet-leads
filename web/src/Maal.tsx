@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { addDays, daysFromToday, short, today } from "./dates";
 import {
-  errorText, projectName, setDeltagerStatus, setOver20,
+  addOpslag, errorText, projectName, setDeltagerStatus, setOver20,
   type Data, type Deltager, type DeltagerStatus, type Haendelse, type Maal as MaalT, type Projekt,
 } from "./data";
 import type { FocusKey } from "./Focus";
@@ -41,6 +41,8 @@ export default function Maal({ data, onOpen, onChanged }: { data: Data; onOpen: 
             onOver20={(id, v) => run(() => setOver20(id, v))} />}
         </div>
         <div>
+          {get("linkedin_opslag") && <Opslag m={get("linkedin_opslag")!} data={data} start={start} slut={slut} uger={uger}
+            onAdd={(dato, tekst, url) => run(() => addOpslag(dato, tekst, url))} />}
           {get("loefter_48t") && <Loefter m={get("loefter_48t")!} data={data} start={start} />}
           <Arrangementer data={data} onStatus={(d, s) => run(() => setDeltagerStatus(d.id, s))} />
         </div>
@@ -158,7 +160,60 @@ function Moeder({ m, data, start, slut, uger, onOpen, onOver20 }: {
   );
 }
 
-// ---------- 3. Løfter holdt inden 48 timer ----------
+// ---------- 3. LinkedIn-opslag ----------
+// Ét om ugen er perfekt. LinkedIn sender ingen mails om dine egne opslag, så du registrerer dem her
+// (eller siger det til Claude). Vi tæller opslag i perioden og viser, om ugen er klaret.
+function Opslag({ m, data, start, slut, uger, onAdd }: {
+  m: MaalT; data: Data; start: string; slut: string; uger: number;
+  onAdd: (dato: string, tekst: string, url: string) => Promise<void>;
+}) {
+  const t = today();
+  const mandag = addDays(t, -((new Date(t + "T12:00:00Z").getUTCDay() + 6) % 7));
+  const iPerioden = data.opslag.filter(o => o.dato >= start && o.dato <= slut);
+  const denneUge = iPerioden.some(o => o.dato >= mandag && o.dato <= addDays(mandag, 6));
+  const [aaben, setAaben] = useState(false);
+  const [tekst, setTekst] = useState("");
+  const [url, setUrl] = useState("");
+  const [dato, setDato] = useState(t);
+  const [busy, setBusy] = useState(false);
+
+  async function gem() {
+    setBusy(true);
+    try { await onAdd(dato, tekst, url); setAaben(false); setTekst(""); setUrl(""); setDato(today()); } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="panel maal-kort">
+      <div className="sec">{m.titel}</div>
+      <Tal value={iPerioden.length} m={m} />
+      <Meter value={iPerioden.length} m={m} />
+      <p className="muted small">Denne uge: {denneUge ? "✓ klaret" : "ikke endnu"}. {takt(Number(m.perfekt) - iPerioden.length, uger)}</p>
+      {iPerioden.length > 0 && (
+        <ul className="maal-liste">
+          {iPerioden.slice(0, 5).map(o => (
+            <li key={o.id}><span className="d">{short(o.dato)}</span>
+              {o.url ? <a href={o.url} target="_blank" rel="noreferrer">{o.tekst || "Opslag"}</a> : <span>{o.tekst || "Opslag"}</span>}</li>
+          ))}
+        </ul>
+      )}
+      {aaben ? (
+        <div className="nextstep">
+          <input className="task-text" value={tekst} placeholder="Hvad handlede det om?" onChange={e => setTekst(e.target.value)} aria-label="Emne" />
+          <input className="task-text" value={url} placeholder="Link (valgfrit)" inputMode="url" onChange={e => setUrl(e.target.value)} aria-label="Link" />
+          <div className="acts">
+            <input type="date" className="task-date" value={dato} max={t} onChange={e => setDato(e.target.value)} aria-label="Dato" />
+            <button type="button" className="btn primary" disabled={busy || !dato} onClick={gem}>{busy ? "Gemmer …" : "Gem opslag"}</button>
+            <button type="button" className="linkbtn" onClick={() => setAaben(false)}>Fortryd</button>
+          </div>
+        </div>
+      ) : (
+        <div className="acts"><button type="button" className="btn" onClick={() => setAaben(true)}>+ Jeg har lavet et opslag</button></div>
+      )}
+    </section>
+  );
+}
+
+// ---------- 4. Løfter holdt inden 48 timer ----------
 function Loefter({ m, data, start }: { m: MaalT; data: Data; start: string }) {
   const t = today();
   // Kun løfter, der har haft 48 timer at blive holdt i, tæller med.
@@ -179,7 +234,7 @@ function Loefter({ m, data, start }: { m: MaalT; data: Data; start: string }) {
   );
 }
 
-// ---------- 4. Netværksmøder ----------
+// ---------- 5. Netværksmøder ----------
 const STATUS: { k: DeltagerStatus; label: string }[] = [
   { k: "inviteret", label: "Inviteret" }, { k: "tilmeldt", label: "Tilmeldt" }, { k: "moedt", label: "Mødt" }, { k: "afbud", label: "Afbud" },
 ];
@@ -206,9 +261,7 @@ function Arrangementer({ data, onStatus }: { data: Data; onStatus: (d: Deltager,
             <button type="button" className="arr-head" onClick={() => setAaben(aaben === a.id ? null : a.id)} aria-expanded={aaben === a.id}>
               <span className="d">{short(a.dato)}</span>
               <span className="arr-navn">{a.navn}</span>
-              <span className="arr-tal">
-                {dl.length ? <>{dl.length - n("afbud")} inv. · {n("tilmeldt")} tilm. · {n("moedt")} mødt · <b>{opf} opf.</b></> : <span className="muted">ingen deltagere</span>}
-              </span>
+              <span className="arr-tal">{arrTal(a.rolle, forbi, dl.length, n, opf)}</span>
             </button>
             {aaben === a.id && dl.length > 0 && (
               <ul className="arr-liste">
@@ -240,5 +293,21 @@ function takt(mangler: number, uger: number): string {
 }
 
 const kr = (n: number) => new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 }).format(n) + " kr.";
+
+/**
+ * Tallene under et arrangement, i almindelige ord.
+ * Vært: før = hvem kommer, efter = hvem mødte du, og hvor mange blev til et opfølgningsmøde.
+ * Gæst (fx Agendas fredagsbar): du styrer ikke tilmeldingerne, så kun hvem du mødte og fulgte op på.
+ */
+function arrTal(rolle: "vaert" | "gaest", forbi: boolean, antal: number, n: (s: DeltagerStatus) => number, opf: number) {
+  const opfTekst = <b>{opf} {opf === 1 ? "opfølgningsmøde" : "opfølgningsmøder"}</b>;
+  if (rolle === "gaest") {
+    if (!antal) return <>Du er gæst · <span className="muted">hvem du møder, kommer med via dine noter</span></>;
+    return forbi ? <>Du var gæst · {n("moedt")} mødt · {opfTekst}</> : <>Du er gæst · {antal} på listen</>;
+  }
+  if (!antal) return <span className="muted">ingen inviterede endnu</span>;
+  if (forbi) return <>{n("moedt")} mødt · {opfTekst}</>;
+  return <><b>{n("tilmeldt")} kommer</b> · {n("inviteret")} afventer svar · {n("afbud")} afbud</>;
+}
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
