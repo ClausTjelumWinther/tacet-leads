@@ -236,7 +236,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
 
             {tasks.length > 0 && (
               <div className="tasks">
-                <div className="sec">Dine løfter, bliver til opgaver</div>
+                <div className="sec">Dine løfter · med flueben bliver de til opgaver</div>
                 {tasks.map((t, i) => (
                   <div className="task-edit" key={i}>
                     <input type="checkbox" id={`vn-t${i}`} checked={t.med} aria-label="Tag med"
@@ -250,10 +250,11 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
               </div>
             )}
 
-            {forslag.naeste_skridt && target?.type === "projekt" && (
+            {/* Kun når projektet er valgt. Det er noget andet end en opgave: det ændrer projektets "Næste skridt". */}
+            {forslag.naeste_skridt && target?.type === "projekt" && !picking && (
               <label className="next-opt">
                 <input type="checkbox" checked={useNext} onChange={e => setUseNext(e.target.checked)} />
-                <span>Opdatér næste skridt til <b>{forslag.naeste_skridt.tekst}</b> ({short(forslag.naeste_skridt.dato)})</span>
+                <span>Sæt også som næste skridt på {target.navn}: <b>{forslag.naeste_skridt.tekst}</b> ({short(forslag.naeste_skridt.dato)})</span>
               </label>
             )}
 
