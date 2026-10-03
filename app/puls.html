@@ -168,8 +168,14 @@ textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(-
     if (Array.isArray(payload)) return payload;
     let s = typeof payload === "string" ? payload : (payload && typeof payload.result === "string" ? payload.result : null);
     if (s == null) { if (payload && Array.isArray(payload.result)) return payload.result; throw {message:"Uventet svar fra Supabase"}; }
-    const m = s.match(/<untrusted-data-[^>]*>\s*([\s\S]*?)\s*<\/untrusted-data-/);
-    return JSON.parse(m ? m[1] : s);
+    const close = s.indexOf("</untrusted-data-");
+    if (close >= 0){
+      const openTag = s.lastIndexOf("<untrusted-data-", close);
+      const gt = s.indexOf(">", openTag);
+      return JSON.parse(s.slice(gt + 1, close).trim());
+    }
+    const start = s.search(/[\[{]/);
+    return JSON.parse(start >= 0 ? s.slice(start) : s);
   }
 
   async function sql(query){
