@@ -168,6 +168,12 @@ export async function createTask(tekst: string, forfald: string, link: { person_
   if (error) throw error;
 }
 
+/** Det nuværende skridt er klaret: skriv det i historikken og sæt det næste. */
+export async function completeStep(id: string, gammelt: string | null, tekst: string, dato: string): Promise<void> {
+  if (gammelt?.trim()) await addNote("projekt", id, `Klaret: ${gammelt.trim()}`);
+  await setNextStep(id, tekst, dato);
+}
+
 export async function setNextStep(id: string, tekst: string, dato: string): Promise<void> {
   const { error } = await supabase.from("projekter").update({ naeste_skridt: tekst, naeste_skridt_dato: dato }).eq("id", id);
   if (error) throw error;

@@ -54,7 +54,8 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     const live = projekter.filter(p => p.stage !== "tabt");
     const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).sort(byDate);
     const soon = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= w).sort(byDate);
-    const nodate = live.filter(p => ACTIVE.includes(p.stage) && !p.naeste_skridt_dato);
+    // Et lead skal altid have en kommende action med dato. Netværk tæller med her.
+    const nodate = live.filter(p => (ACTIVE.includes(p.stage) || p.stage === "netvaerk") && (!p.naeste_skridt?.trim() || !p.naeste_skridt_dato));
     const tasks = data.opgaver
       .filter(o => hit(o.tekst, o.person?.navn, o.projekt?.firma?.firmanavn))
       .sort((a, b) => (a.forfald ?? "9999").localeCompare(b.forfald ?? "9999"));
@@ -76,7 +77,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
           <Group id="loefter" title="Små løfter" count={tasks.length} empty="Ingen åbne løfter.">
             {tasks.map(o => <TaskRow key={o.id} o={o} onDone={async () => { await completeTask(o.id); await onChanged(); }} />)}
           </Group>
-          <Group title="Aktive uden dato" count={nodate.length} empty="Alle aktive leads har en dato.">{nodate.map(pRow)}</Group>
+          <Group title="Mangler næste skridt" count={nodate.length} warn={nodate.length > 0} empty="Alle leads har et næste skridt med dato.">{nodate.map(pRow)}</Group>
         </div>
       </div>
       </>

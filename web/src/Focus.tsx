@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, errorText, haendelserFor, moveNextStep, projectName, type Data } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, errorText, haendelserFor, moveNextStep, projectName, type Data } from "./data";
+import NextStep from "./NextStep";
 import { Activity, Contact, Group, PersonRow, ProjectRow, Timeline, WhenChip, boldenHosDig } from "./parts";
 import NoteComposer, { saveTasks } from "./NoteComposer";
 
@@ -12,6 +13,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
   onBack: () => void; onOpen: (k: FocusKey) => void; onChanged: () => Promise<void>;
 }) {
   const [flash, setFlash] = useState<{ text: string; err?: boolean } | null>(null);
+  const [klaret, setKlaret] = useState(false);   // viser "Hvad er det næste?"
 
   // Kør en ændring, vis en kvittering, og hent frisk data bagefter.
   // rethrow=true: fejlen sendes videre, så notefeltet beholder din tekst, hvis gemningen fejler.
@@ -49,15 +51,29 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           <div className="fmain">
             <section className="panel">
               <div className="sec">Næste skridt</div>
-              <p className={`bignext${p.naeste_skridt ? "" : " none"}`}>{p.naeste_skridt || "Intet næste skridt endnu"}</p>
-              <div><WhenChip date={p.naeste_skridt_dato} /></div>
-              <div className="acts">
-                <span className="lbl">Flyt til</span>
-                <button type="button" className="btn" onClick={() => move(1)}>I morgen</button>
-                <button type="button" className="btn" onClick={() => move(3)}>+3 dage</button>
-                <button type="button" className="btn" onClick={() => move(7)}>+1 uge</button>
-                <button type="button" className="btn" onClick={() => move(14)}>+2 uger</button>
-              </div>
+              {klaret ? (
+                <NextStep key={p.id} current={p.naeste_skridt} onCancel={() => setKlaret(false)}
+                  onSave={(tekst, dato) => run(async () => { await completeStep(p.id, p.naeste_skridt, tekst, dato); setKlaret(false); },
+                    `Næste skridt er sat til ${short(dato)}`, true)} />
+              ) : (
+                <>
+                  <p className={`bignext${p.naeste_skridt ? "" : " none"}`}>{p.naeste_skridt || "Intet næste skridt endnu"}</p>
+                  <div><WhenChip date={p.naeste_skridt_dato} /></div>
+                  <div className="acts">
+                    <button type="button" className="btn primary" onClick={() => setKlaret(true)}>
+                      {p.naeste_skridt ? "✓ Klaret – hvad er det næste?" : "Sæt næste skridt"}</button>
+                  </div>
+                  {p.naeste_skridt && (
+                    <div className="acts">
+                      <span className="lbl">Eller flyt til</span>
+                      <button type="button" className="btn" onClick={() => move(1)}>I morgen</button>
+                      <button type="button" className="btn" onClick={() => move(3)}>+3 dage</button>
+                      <button type="button" className="btn" onClick={() => move(7)}>+1 uge</button>
+                      <button type="button" className="btn" onClick={() => move(14)}>+2 uger</button>
+                    </div>
+                  )}
+                </>
+              )}
             </section>
             <section className="panel">
               <label className="sec" htmlFor="note">Notér</label>
