@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, errorText, haendelserFor, moveNextStep, projectName, type Data } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, type Data } from "./data";
 import NextStep from "./NextStep";
-import { Activity, Contact, Group, PersonRow, ProjectRow, Timeline, WhenChip, boldenHosDig } from "./parts";
+import { Activity, Contact, Group, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
 import NoteComposer, { saveTasks } from "./NoteComposer";
 
 export type FocusKey = { kind: "projekt" | "person"; id: string };
@@ -31,6 +31,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
     const people = data.personer.filter(x => p.virksomhed_id && x.virksomhed_id === p.virksomhed_id);
     const others = data.projekter.filter(q => p.virksomhed_id && q.virksomhed_id === p.virksomhed_id && q.id !== p.id);
     const akt = haendelserFor(data, { projekt: p });
+    const loefterP = data.loefter.filter(l => l.projekt_id === p.id || (!!l.person_id && people.some(x => x.id === l.person_id)));
     const move = (n: number) => { const d = addDays(today(), n); run(() => moveNextStep(p.id, d), `Næste skridt er flyttet til ${short(d)}`); };
 
     return (
@@ -87,6 +88,8 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           </div>
           <aside className="fside">
             <section className="panel"><div className="sec">Kontakt</div><Contact email={p.firma?.email ?? null} phone={p.firma?.mobilnummer ?? null} /></section>
+            <section className="panel"><div className="sec">Små løfter</div>
+              <Promises items={loefterP} onDone={id => run(() => completeTask(id), "Løftet er klaret")} /></section>
             <section className="panel"><div className="sec">Mails og møder</div><Activity items={akt} /></section>
             <Group title="Hos samme firma" count={people.length + others.length} empty="Ingen andre personer eller projekter endnu.">
               {people.map(x => <PersonRow key={x.id} x={x} onOpen={() => onOpen({ kind: "person", id: x.id })} />)}
@@ -102,6 +105,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
   if (!x) return <div className="focus">{back}<div className="empty">Personen findes ikke længere.</div></div>;
   const projs = data.projekter.filter(q => x.virksomhed_id && q.virksomhed_id === x.virksomhed_id);
   const aktP = haendelserFor(data, { person: x });
+  const loefterX = data.loefter.filter(l => l.person_id === x.id);
   const colleagues = data.personer.filter(y => x.virksomhed_id && y.virksomhed_id === x.virksomhed_id && y.id !== x.id);
 
   return (
@@ -131,6 +135,8 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         </div>
         <aside className="fside">
           <section className="panel"><div className="sec">Kontakt</div><Contact email={x.email} phone={x.mobilnummer} /></section>
+          <section className="panel"><div className="sec">Små løfter</div>
+            <Promises items={loefterX} onDone={id => run(() => completeTask(id), "Løftet er klaret")} /></section>
           <section className="panel"><div className="sec">Mails og møder</div><Activity items={aktP} /></section>
           {projs.length > 0 && (
             <Group title="Projekter" count={projs.length}>

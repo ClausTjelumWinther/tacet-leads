@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { kr, short, whenLabel } from "./dates";
-import { KATEGORI, STAGES, projectName, type ClaudeForslag, type Haendelse, type Opgave, type Person, type Projekt } from "./data";
+import { KATEGORI, STAGES, projectName, type ClaudeForslag, type Haendelse, type LoefteStat, type Opgave, type Person, type Projekt } from "./data";
 
 // Små genbrugelige byggesten. Hver funktion her er en "komponent": den tager data ind og returnerer HTML.
 
@@ -140,5 +140,34 @@ export function ForslagRow({ f, onYes, onNo }: { f: ClaudeForslag; onYes: () => 
         <button type="button" className="btn" disabled={busy} onClick={go(onNo)}>Nej</button>
       </span>
     </div>
+  );
+}
+
+/** Små løfter på et kort: de åbne øverst med "Færdig", de klarede nedenunder med dato. */
+export function Promises({ items, onDone }: { items: LoefteStat[]; onDone: (id: string) => Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!items.length) return <div className="empty tight">Ingen løfter endnu. De kommer af sig selv, når du indtaler "jeg lovede …".</div>;
+  const aabne = items.filter(l => !l.faerdig);
+  const klarede = items.filter(l => l.faerdig).slice(0, 5);
+  return (
+    <ul className="promises">
+      {aabne.map(l => (
+        <li key={l.id}>
+          <span className="p-tekst">{l.tekst}</span>
+          <span className="side">
+            <WhenChip date={l.forfald} />
+            <button type="button" className="btn" disabled={busy === l.id}
+              onClick={async () => { setBusy(l.id); try { await onDone(l.id); } finally { setBusy(null); } }}>
+              {busy === l.id ? "Gemmer…" : "Færdig"}</button>
+          </span>
+        </li>
+      ))}
+      {klarede.map(l => (
+        <li key={l.id} className="done">
+          <span className="p-tekst">✓ {l.tekst}</span>
+          <span className="muted small">{l.faerdig_dato ? `klaret ${short(l.faerdig_dato)}` : "klaret"}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

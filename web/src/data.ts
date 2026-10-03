@@ -74,7 +74,11 @@ export interface Deltager {
 }
 /** Alle løfter (også de klarede), så vi kan måle "holdt inden 48 timer". */
 export interface Opslag { id: string; dato: string; tekst: string | null; url: string | null }
-export interface LoefteStat { oprettet: string; faerdig: boolean; faerdig_dato: string | null }
+/** Alle løfter, også de klarede: bruges til "holdt inden 48 timer" og til status på kortene. */
+export interface LoefteStat {
+  id: string; tekst: string; person_id: string | null; projekt_id: string | null;
+  forfald: string | null; oprettet: string; faerdig: boolean; faerdig_dato: string | null;
+}
 
 export interface Data {
   projekter: Projekt[];
@@ -115,7 +119,7 @@ export async function loadAll(): Promise<Data> {
     supabase.from("maalinger").select("dato, noegle, vaerdi, detaljer").order("dato", { ascending: false }).limit(200),
     supabase.from("arrangementer").select("id, navn, dato, sted, rolle").order("dato"),
     supabase.from("deltagere").select("id, arrangement_id, navn, email, person_id, projekt_id, status").order("navn"),
-    supabase.from("opgaver").select("oprettet, faerdig, faerdig_dato"),
+    supabase.from("opgaver").select("id, tekst, person_id, projekt_id, forfald, oprettet, faerdig, faerdig_dato").order("oprettet", { ascending: false }),
     supabase.from("opslag").select("id, dato, tekst, url").order("dato", { ascending: false }),
   ]);
   const err = p.error || pe.error || o.error || h.error || f.error || m.error || ml.error || ar.error || de.error || lo.error || op.error;
