@@ -7,6 +7,7 @@ import Header from "./Header";
 import Lists, { type Tab, TABS } from "./Lists";
 import Focus, { type FocusKey } from "./Focus";
 import QuickNote from "./QuickNote";
+import VoiceNote, { MicIcon } from "./VoiceNote";
 
 // App styrer to ting: er du logget ind, og hvad kigger du på lige nu.
 export default function App() {
@@ -39,6 +40,7 @@ function Shell() {
   const [tab, setTab] = useState<Tab>(readTab);
   const [focus, setFocus] = useState<FocusKey | null>(null);
   const [quick, setQuick] = useState(false);
+  const [voice, setVoice] = useState(false);
   // Søgeteksten bor her, så den bliver stående, når du åbner et fokuskort og går tilbage.
   const [query, setQuery] = useState("");
 
@@ -101,7 +103,13 @@ function Shell() {
           <button type="button" className="linkbtn" onClick={() => supabase.auth.signOut()}>Log ud</button>
         </footer>
       )}
-      {data && <button type="button" className="fab" aria-label="Hurtig note" onClick={() => setQuick(true)}>+ Note</button>}
+      {data && (
+        <div className="fabs">
+          <button type="button" className="fab-sec" onClick={() => setQuick(true)}>+ Note</button>
+          <button type="button" className="fab-mic" aria-label="Indtal en note" onClick={() => setVoice(true)}><MicIcon /></button>
+        </div>
+      )}
+      {voice && data && <VoiceNote data={data} onClose={() => setVoice(false)} onSaved={reload} />}
       {quick && data && <QuickNote data={data} onClose={() => setQuick(false)} onSaved={reload} />}
     </div>
   );

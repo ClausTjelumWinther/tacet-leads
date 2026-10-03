@@ -18,7 +18,9 @@ Læs filerne i denne rækkefølge, så giver det mening:
 | `src/dates.ts` | Datohjælpere i dansk tid. |
 | `src/Lists.tsx` | Fanerne: I dag, Pipeline, Netværk, Velatir, Personer. |
 | `src/Focus.tsx` | Fokuskortet for én person eller ét projekt. |
-| `src/QuickNote.tsx` | "+ Note"-knappen til lige efter et møde. |
+| `src/QuickNote.tsx` | "+ Note"-knappen: vælg person og skriv selv. |
+| `src/VoiceNote.tsx` | Mikrofonen: lyt → Claude sorterer → du godkender og gemmer. |
+| `../supabase/functions/struktur-note/` | Funktionen i Supabase, der beder Claude finde personen, rense noten og finde dine løfter. Den skriver intet selv. |
 | `src/parts.tsx` | Små byggesten, der går igen: rækker, datochips, tidslinje, kontakt. |
 | `src/styles.css` | Hele designet. Farverne står som tokens øverst. |
 | `public/` | Ikoner og `manifest.webmanifest`, der gør appen installerbar. |
@@ -51,4 +53,4 @@ Appen er en almindelig statisk side, så den kan ligge gratis hos fx Vercel:
 
 Åbn adressen i Safari (iPhone) eller Chrome (Android) → *Del* / menuen → **Føj til hjemmeskærm**. Så får du Puls-ikonet og fuld skærm.
 
-**Indtale:** tryk på mikrofonen på telefonens tastatur i notefeltet. Den rigtige stemmeknap, hvor Claude selv sorterer noten, er næste trin.
+**Indtale:** tryk på den grønne mikrofon nederst. Telefonen skriver ned, mens du taler, Claude sorterer, og du godkender. Kan browseren ikke lytte direkte, så brug mikrofonen på tastaturet i tekstfeltet. Claude-nøglen ligger som hemmeligheden `ANTHROPIC_API_KEY` i Supabase (*Edge Functions → Secrets*), aldrig i appen.

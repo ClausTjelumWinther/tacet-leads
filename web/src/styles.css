@@ -108,7 +108,7 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .flash.err{background:var(--warn-soft);color:var(--warn)}
 
 /* Hurtig note: knap nederst og et ark, der glider op */
-.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));border:0;border-radius:999px;padding:14px 20px;background:var(--accent);color:var(--on-accent);font-weight:600;font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+
 .sheet-bg{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;z-index:10}
 .sheet{background:var(--bg);width:100%;max-width:640px;border-radius:16px 16px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:90vh;overflow:auto}
 @media (min-width:700px){ .sheet-bg{align-items:center} .sheet{border-radius:16px} }
@@ -131,3 +131,25 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .loading b{display:block;font-family:var(--f-display);font-size:20px;color:var(--ink);margin-bottom:4px}
 .foot{margin-top:28px;font-size:12px;color:var(--muted);font-family:var(--f-mono);display:flex;gap:12px;align-items:center}
 @media (prefers-reduced-motion:no-preference){ .sheet{animation:up .18s ease-out} @keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}} }
+
+/* Mikrofonen */
+.fabs{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;z-index:5}
+.fab-sec{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:12px 16px;font-weight:600;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.fab-mic{width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.mic-row{display:flex;align-items:center;gap:14px}
+.mic{flex:none;width:64px;height:64px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:var(--accent);display:grid;place-items:center}
+.mic.on{background:var(--warn);border-color:var(--warn);color:#fff}
+.voice-text{min-height:150px}
+.tasks{display:flex;flex-direction:column;gap:8px}
+.task-edit{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center}
+.task-edit input[type="checkbox"]{width:20px;height:20px}
+.task-text,.task-date{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:16px;background:var(--surface);color:var(--ink);min-width:0}
+.next-opt{display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:10px 12px;border:1px dashed var(--line);border-radius:8px}
+.next-opt input{margin-top:3px;width:18px;height:18px}
+.picker{display:flex;flex-direction:column;gap:6px}
+.warn-hint{margin:0;font-size:13px;color:var(--warn)}
+@media (prefers-reduced-motion:no-preference){
+  .mic.on{animation:pulse 1.4s ease-out infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--warn) 45%,transparent)}100%{box-shadow:0 0 0 18px transparent}}
+}
+.linkbtn:disabled{opacity:.45;cursor:default}

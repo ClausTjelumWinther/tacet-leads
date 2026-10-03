@@ -120,6 +120,8 @@ Live på **https://puls.tacet.dk** (Vercel, bygges automatisk ved push til `main
 
 `web/` er Claus' egen app (Vite + React + TypeScript + Supabase JS), kun til ham. Den logger ind med hans Supabase-bruger og respekterer RLS. Claus bygger den for at lære, så **forklar kort, hvad du ændrer og hvorfor**, og hold koden letlæselig med danske kommentarer. Se `web/README.md` for opbygningen. Kør altid `npm run build` i `web/` før commit; den tjekker også typerne.
 
+Mikrofonen bruger edge-funktionen `struktur-note` (`supabase/functions/struktur-note/`), som kalder Claude med `ANTHROPIC_API_KEY` fra Supabase' hemmeligheder. Funktionen returnerer kun et forslag; appen skriver først, når Claus trykker Gem. Ændrer du funktionen, så deploy den med `deploy_edge_function` (verify_jwt = true).
+
 ## Mappestruktur
 
 ```

@@ -106,6 +106,43 @@ export async function createPerson(navn: string, note: string): Promise<string> 
   return data.id as string;
 }
 
+// ---------- Mikrofonen: Claude sorterer, du godkender ----------
+
+export interface Forslag {
+  maal_type: "person" | "projekt" | "ny_person";
+  maal_id?: string;
+  maal_navn?: string;
+  ny_person_navn?: string;
+  note: string;
+  opgaver: { tekst: string; forfald: string }[];
+  naeste_skridt?: { tekst: string; dato: string };
+  sikker: boolean;
+  begrundelse: string;
+}
+
+/** Sender den indtalte tekst til edge-funktionen "struktur-note". Den skriver intet selv. */
+export async function structure(transkript: string): Promise<Forslag> {
+  const { data, error } = await supabase.functions.invoke("struktur-note", { body: { transkript, idag: today() } });
+  if (error) {
+    // Funktionen svarer med {fejl: "..."} på dansk. Vi prøver at læse den ud af svaret.
+    let fejl = "";
+    try { const ctx = (error as { context?: Response }).context; fejl = (await ctx?.json())?.fejl ?? ""; } catch { /* intet læsbart svar */ }
+    throw new Error(fejl || "Kunne ikke kontakte AI-funktionen. Tjek forbindelsen og prøv igen.");
+  }
+  if (data?.fejl) throw new Error(data.fejl);
+  return data.forslag as Forslag;
+}
+
+export async function createTask(tekst: string, forfald: string, link: { person_id?: string; projekt_id?: string }): Promise<void> {
+  const { error } = await supabase.from("opgaver").insert({ tekst, forfald, ...link });
+  if (error) throw error;
+}
+
+export async function setNextStep(id: string, tekst: string, dato: string): Promise<void> {
+  const { error } = await supabase.from("projekter").update({ naeste_skridt: tekst, naeste_skridt_dato: dato }).eq("id", id);
+  if (error) throw error;
+}
+
 // ---------- Hjælpere ----------
 
 export const projectName = (p: Projekt) => p.firma?.firmanavn?.trim() || p.produkt;
