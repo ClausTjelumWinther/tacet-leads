@@ -183,7 +183,8 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
       <div className="sheet voice" role="dialog" aria-modal="true" aria-labelledby="vn-title" onClick={e => e.stopPropagation()}>
         <div className="sheet-head">
           <h2 id="vn-title">{step === "forslag" || step === "gemmer" ? "Tjek og gem" : "Indtal"}</h2>
-          <button type="button" className="linkbtn" onClick={() => { stop(); onClose(); }}>Luk</button>
+          <button type="button" className="linkbtn" onClick={() => { stop(); onClose(); }}>
+            {text.trim() || note.trim() ? "Luk · gemmes som kladde" : "Luk"}</button>
         </div>
 
         {draft && (

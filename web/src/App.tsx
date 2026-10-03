@@ -8,6 +8,7 @@ import Lists, { type Tab, TABS } from "./Lists";
 import Focus, { type FocusKey } from "./Focus";
 import QuickNote from "./QuickNote";
 import VoiceNote, { MicIcon, hasDraft } from "./VoiceNote";
+import { updateIfNewer, versionLabel } from "./version";
 
 // App styrer to ting: er du logget ind, og hvad kigger du på lige nu.
 export default function App() {
@@ -57,7 +58,10 @@ function Shell() {
     }
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    updateIfNewer();
+  }, [reload]);
 
   // Hent nyt, når du vender tilbage til appen (fx efter et møde).
   // Har du været væk i mere end 5 minutter, starter søgningen også forfra.
@@ -67,6 +71,9 @@ function Shell() {
       if (document.visibilityState === "hidden") { hiddenAt = Date.now(); return; }
       if (hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) setQuery("");
       reload();
+      // Er der kommet en ny version af appen, så hent den. En halvfærdig indtaling
+      // ligger som kladde og er der stadig bagefter.
+      updateIfNewer();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -119,7 +126,7 @@ function Shell() {
         : <Lists data={data} tab={tab} onTab={chooseTab} onOpen={openFocus} onChanged={reload} query={query} setQuery={setQuery} />)}
       {loadedAt && (
         <footer className="foot">
-          Hentet {loadedAt.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}
+          Hentet {loadedAt.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })} · version {versionLabel()}
           <button type="button" className="linkbtn" onClick={() => supabase.auth.signOut()}>Log ud</button>
         </footer>
       )}
