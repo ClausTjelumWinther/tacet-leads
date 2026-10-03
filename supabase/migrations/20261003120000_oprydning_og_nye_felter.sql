@@ -1,4 +1,5 @@
--- IKKE ANVENDT ENDNU. Venter på Claus' ok.
+-- Anvendt 03/10/2026, kørt manuelt i Supabase SQL-editoren.
+-- Står derfor ikke i Supabase' egen migrationshistorik.
 --
 -- 1. Fjerner dublet-triggeren på linkedin_outreach (samme funktion kørte to gange).
 -- 2. Tilføjer virksomheder.domaene, så mails og møder kan matches til den rigtige kunde.
