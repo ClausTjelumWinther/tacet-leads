@@ -114,6 +114,10 @@ Alle tekster, der skal sendes i Claus' navn, følger `docs/skrivestil.md`.
 `app/puls.html` er Claus' visuelle overblik, publiceret som artifact: https://claude.ai/artifact/EE1LdowvSTQYhRBcj9VDwH
 Siden læser live fra Supabase via Claus' egen connector (`mcp`-capability, kun `execute_sql`), så der ligger ingen data i selve siden. Ret i filen og publicér med samme URL (`url`-parameteren), så linket bevares. Ændres skemaet, skal `LOAD`-forespørgslen i siden følge med.
 
+## Web-appen (web/)
+
+`web/` er Claus' egen app (Vite + React + TypeScript + Supabase JS), kun til ham. Den logger ind med hans Supabase-bruger og respekterer RLS. Claus bygger den for at lære, så **forklar kort, hvad du ændrer og hvorfor**, og hold koden letlæselig med danske kommentarer. Se `web/README.md` for opbygningen. Kør altid `npm run build` i `web/` før commit; den tjekker også typerne.
+
 ## Mappestruktur
 
 ```
