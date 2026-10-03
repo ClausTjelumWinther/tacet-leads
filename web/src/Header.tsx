@@ -4,8 +4,8 @@ import type { Data } from "./data";
 export type Jump = "forfaldent" | "uge" | "loefter" | "pipeline";
 
 // Toppen: dato og de fire tal. Tallene er knapper, der springer til det, de tæller.
-export default function Header({ data, loading, onRefresh, onJump }:
-  { data: Data | null; loading: boolean; onRefresh: () => void; onJump: (j: Jump) => void }) {
+export default function Header({ data, loading, onRefresh, onJump, onHome }:
+  { data: Data | null; loading: boolean; onRefresh: () => void; onJump: (j: Jump) => void; onHome: () => void }) {
   const t = today();
   const date = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
@@ -29,7 +29,8 @@ export default function Header({ data, loading, onRefresh, onJump }:
   return (
     <header className="top">
       <div className="brand">
-        <h1>Puls</h1>
+        {/* "Puls" er en knap hjem: rydder søgningen og går til I dag, ligesom et logo på en hjemmeside. */}
+        <h1><button type="button" className="home" onClick={onHome} aria-label="Til forsiden">Puls</button></h1>
         <div className="date">{date}</div>
       </div>
       {pulse}

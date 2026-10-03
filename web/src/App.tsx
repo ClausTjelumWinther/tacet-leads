@@ -97,6 +97,12 @@ function Shell() {
   };
 
   // Når en note er gemt, er du færdig med det, du ledte efter.
+  // Klik på "Puls": luk fokuskortet, ryd søgningen, gå til I dag og rul til toppen.
+  const goHome = () => {
+    chooseTab("idag");   // chooseTab lukker også et åbent fokuskort og rydder søgningen
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const afterSave = async () => { setQuery(""); await reload(); };
 
   const openFocus = (key: FocusKey) => {
@@ -118,7 +124,7 @@ function Shell() {
 
   return (
     <div className="wrap">
-      <Header data={data} loading={loading} onRefresh={reload} onJump={jump} />
+      <Header data={data} loading={loading} onRefresh={reload} onJump={jump} onHome={goHome} />
       {error && <div className="banner">{error}</div>}
       {!data && !error && <div className="loading"><b>Henter dine leads</b>Et øjeblik.</div>}
       {data && (focus
