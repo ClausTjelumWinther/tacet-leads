@@ -42,7 +42,7 @@ export interface Opgave {
 export interface Haendelse {
   id: string;
   dato: string;
-  type: "mail_ind" | "mail_ud" | "moede" | "invitation";
+  type: "mail_ind" | "mail_ud" | "moede" | "levering" | "invitation";
   titel: string;
   email: string | null;
   person_id: string | null;

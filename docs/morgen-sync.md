@@ -44,6 +44,7 @@ on conflict (kilde) do nothing;
 - **Kommende arrangementer de næste 60 dage**, hvor Claus er arrangør og har inviteret folk: én `invitation`-række pr. deltager, dateret i dag, titel fx `Inviteret: AI-middag på Vår (22/10)`, `kilde = 'kal-inv:<event-id>:<email>'`.
 
 - **Bookede møder de næste 60 dage** med eksterne deltagere: én `moede`-række pr. kendt deltager med mødets dato (i fremtiden), `kilde = 'kal:<event-id>:<email>'`. Fanen *Mål* tæller dem som bookede møder.
+- **Møde eller leverance?** Er mødet en del af et betalt forløb (undervisning, workshop, arbejdsdag eller opfølgning på et forløb hos en kunde, fx VSG hos Google i Fredericia eller KEN), så er typen `levering`, ikke `moede`. Kun `moede` (salg, første møder, nye muligheder) tæller som spændende møder i *Mål*. Er du i tvivl, så brug `moede`.
 
 ### 3b. Mål (fanen "Mål")
 - **Timer booket i Q1 2027:** gennemgå kalenderen 1/1–31/3 2027. Tæl kundearbejde: begivenheder med deltagere fra kendte kunder/leads eller et kendt firmanavn i titlen (ikke ski, privat, træning, BB5000 o.l.). Læg varigheden sammen i timer (afrundet til nærmeste halve). Skriv:

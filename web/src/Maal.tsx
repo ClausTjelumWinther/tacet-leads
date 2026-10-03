@@ -111,6 +111,7 @@ function Moeder({ m, data, start, slut, uger, onOpen, onOver20 }: {
   const projekt = (h: Haendelse) => data.projekter.find(p => p.id === h.projekt_id);
 
   // Ét møde pr. dag og modpart. Møder i fremtiden tæller med: de er booket.
+  // Kun salgsmøder ('moede') tæller. Leverancer ('levering') er betalt arbejde, ikke nye muligheder.
   const set = new Map<string, Haendelse>();
   for (const h of data.haendelser) {
     if (h.type !== "moede" || h.dato < start || h.dato > slut) continue;

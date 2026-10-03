@@ -110,7 +110,7 @@ export function Timeline({ noter }: { noter: string | null }) {
   );
 }
 
-const TYPE: Record<Haendelse["type"], string> = { mail_ind: "Mail ind", mail_ud: "Mail ud", moede: "Møde", invitation: "Invitation" };
+const TYPE: Record<Haendelse["type"], string> = { mail_ind: "Mail ind", mail_ud: "Mail ud", moede: "Møde", levering: "Leverance", invitation: "Invitation" };
 
 /** Mails, møder og invitationer fra morgen-gennemgangen. Kun fakta, dine egne noter står for sig. */
 export function Activity({ items }: { items: Haendelse[] }) {
