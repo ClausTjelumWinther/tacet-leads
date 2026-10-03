@@ -61,11 +61,11 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     body = (
       <div className="grid split">
         <div>
-          <Group title="Forfaldent" count={over.length} warn={over.length > 0} empty="Intet forfaldent. Du er ajour.">{over.map(pRow)}</Group>
-          <Group title="De næste 7 dage" count={soon.length} empty="Ingen næste skridt den kommende uge.">{soon.map(pRow)}</Group>
+          <Group id="forfaldent" title="Forfaldent" count={over.length} warn={over.length > 0} empty="Intet forfaldent. Du er ajour.">{over.map(pRow)}</Group>
+          <Group id="uge" title="De næste 7 dage" count={soon.length} empty="Ingen næste skridt den kommende uge.">{soon.map(pRow)}</Group>
         </div>
         <div>
-          <Group title="Små løfter" count={tasks.length} empty="Ingen åbne løfter.">
+          <Group id="loefter" title="Små løfter" count={tasks.length} empty="Ingen åbne løfter.">
             {tasks.map(o => <TaskRow key={o.id} o={o} onDone={async () => { await completeTask(o.id); await onChanged(); }} />)}
           </Group>
           <Group title="Aktive uden dato" count={nodate.length} empty="Alle aktive leads har en dato.">{nodate.map(pRow)}</Group>
@@ -123,7 +123,12 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
           </button>
         ))}
       </nav>
-      <input className="search" type="search" placeholder="Søg efter person, firma eller næste skridt" value={query} onChange={e => setQuery(e.target.value)} />
+      <div className="searchbox">
+        <input className="search" type="search" placeholder="Søg efter person, firma eller næste skridt" value={query}
+          onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === "Escape") setQuery(""); }}
+          autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" aria-label="Søg" />
+        {query && <button type="button" className="search-clear" onClick={() => setQuery("")} aria-label="Ryd søgning">✕</button>}
+      </div>
       {body}
     </>
   );

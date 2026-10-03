@@ -10,10 +10,10 @@ export function WhenChip({ date }: { date: string | null }) {
   return <span className={`when${w.over ? " over" : ""}`}>{w.text}</span>;
 }
 
-export function Group({ title, extra, count, warn, empty, children }:
-  { title: string; extra?: string; count: number; warn?: boolean; empty?: string; children?: ReactNode }) {
+export function Group({ id, title, extra, count, warn, empty, children }:
+  { id?: string; title: string; extra?: string; count: number; warn?: boolean; empty?: string; children?: ReactNode }) {
   return (
-    <section className="group">
+    <section className="group" id={id}>
       <div className={`ghead${warn ? " warn" : ""}`}>
         <h2>{title}{extra && <span className="ghead-extra"> · {extra}</span>}</h2>
         <small>{count}</small>

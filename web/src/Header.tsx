@@ -1,8 +1,11 @@
 import { addDays, today } from "./dates";
 import type { Data } from "./data";
 
-// Toppen: dato og de fire tal, der fortæller, hvordan det står til.
-export default function Header({ data, loading, onRefresh }: { data: Data | null; loading: boolean; onRefresh: () => void }) {
+export type Jump = "forfaldent" | "uge" | "loefter" | "pipeline";
+
+// Toppen: dato og de fire tal. Tallene er knapper, der springer til det, de tæller.
+export default function Header({ data, loading, onRefresh, onJump }:
+  { data: Data | null; loading: boolean; onRefresh: () => void; onJump: (j: Jump) => void }) {
   const t = today();
   const date = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
@@ -15,10 +18,10 @@ export default function Header({ data, loading, onRefresh }: { data: Data | null
     const pipe = data.projekter.filter(p => p.stage === "tilbud" || p.stage === "dialog").reduce((s, p) => s + (p.vaerdi ?? 0), 0);
     pulse = (
       <div className="pulse">
-        <div className={over ? "hot" : ""}><b>{over}</b><span>Forfaldne</span></div>
-        <div><b>{week}</b><span>Næste 7 dage</span></div>
-        <div><b>{data.opgaver.length}</b><span>Løfter</span></div>
-        <div><b>{new Intl.NumberFormat("da-DK", { notation: "compact", maximumFractionDigits: 0 }).format(pipe)}</b><span>I spil, kr.</span></div>
+        <button type="button" className={over ? "hot" : ""} onClick={() => onJump("forfaldent")}><b>{over}</b><span>Forfaldne</span></button>
+        <button type="button" onClick={() => onJump("uge")}><b>{week}</b><span>Næste 7 dage</span></button>
+        <button type="button" onClick={() => onJump("loefter")}><b>{data.opgaver.length}</b><span>Løfter</span></button>
+        <button type="button" onClick={() => onJump("pipeline")}><b>{new Intl.NumberFormat("da-DK", { notation: "compact", maximumFractionDigits: 0 }).format(pipe)}</b><span>I spil, kr.</span></button>
       </div>
     );
   }

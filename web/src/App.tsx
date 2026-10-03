@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { loadAll, errorText, type Data } from "./data";
 import Login from "./Login";
-import Header from "./Header";
+import Header, { type Jump } from "./Header";
 import Lists, { type Tab, TABS } from "./Lists";
 import Focus, { type FocusKey } from "./Focus";
 import QuickNote from "./QuickNote";
@@ -60,8 +60,14 @@ function Shell() {
   useEffect(() => { reload(); }, [reload]);
 
   // Hent nyt, når du vender tilbage til appen (fx efter et møde).
+  // Har du været væk i mere end 5 minutter, starter søgningen også forfra.
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === "visible") reload(); };
+    let hiddenAt = 0;
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") { hiddenAt = Date.now(); return; }
+      if (hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) setQuery("");
+      reload();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [reload]);
@@ -72,6 +78,19 @@ function Shell() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Tallene øverst: skift til den rigtige fane og rul ned til sektionen.
+  const jump = (j: Jump) => {
+    chooseTab(j === "pipeline" ? "pipeline" : "idag");
+    // Vent til listen er tegnet, før vi ruller.
+    setTimeout(() => {
+      if (j === "pipeline") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+      document.getElementById(j)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  // Når en note er gemt, er du færdig med det, du ledte efter.
+  const afterSave = async () => { setQuery(""); await reload(); };
 
   const openFocus = (key: FocusKey) => {
     if (focus) history.replaceState({ focus: key }, "");
@@ -85,13 +104,14 @@ function Shell() {
   };
   const chooseTab = (t: Tab) => {
     setTab(t);
+    setQuery(""); // ny fane = ny opgave, så søgningen nulstilles
     try { localStorage.setItem("puls.tab", t); } catch { /* ignorer */ }
     if (focus) closeFocus();
   };
 
   return (
     <div className="wrap">
-      <Header data={data} loading={loading} onRefresh={reload} />
+      <Header data={data} loading={loading} onRefresh={reload} onJump={jump} />
       {error && <div className="banner">{error}</div>}
       {!data && !error && <div className="loading"><b>Henter dine leads</b>Et øjeblik.</div>}
       {data && (focus
@@ -109,8 +129,8 @@ function Shell() {
           <button type="button" className="fab-mic" aria-label="Indtal en note" onClick={() => setVoice(true)}><MicIcon /></button>
         </div>
       )}
-      {voice && data && <VoiceNote data={data} onClose={() => setVoice(false)} onSaved={reload} />}
-      {quick && data && <QuickNote data={data} onClose={() => setQuick(false)} onSaved={reload} />}
+      {voice && data && <VoiceNote data={data} onClose={() => setVoice(false)} onSaved={afterSave} />}
+      {quick && data && <QuickNote data={data} onClose={() => setQuick(false)} onSaved={afterSave} />}
     </div>
   );
 }
