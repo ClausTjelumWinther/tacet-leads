@@ -27,7 +27,7 @@ Stage-værdier i `projekter.stage`: `lead`, `dialog`, `tilbud`, `kunde`, `tabt`,
 
 **Netværk** (`stage = 'netvaerk'`) er leadgeneratorer: folk og firmaer, der skaffer Claus kunder, men aldrig selv bliver kunder hos Tacet. Fx Martin Brems (Brems & Co), Ole Schmidt (Aider), Jan Jessen (Training Gallery). De har næste skridt ligesom alle andre, men tælles aldrig med i pipelineværdien.
 
-**Velatir** (`projekter.velatir = true`) markerer projekter, der peger på et Velatir-abonnement. Claus tjener på abonnementerne, så de skal kunne trækkes som en liste. Et projekt kan både være Velatir og AI-salg på samme tid (fx KFUM).
+**Velatir** (`projekter.velatir = true`) er en ekstra markering oven på et Tacet-lead. Alle leads er Tacet-leads; nogle peger derudover på et Velatir-abonnement. Claus tjener på abonnementerne, så de skal kunne trækkes som en liste. Et projekt kan både være Velatir og AI-salg på samme tid (fx KFUM).
 Status-værdier i `linkedin_outreach.status`: `pa_listen`, `besked_sendt`, `i_dialog`, `konverteret`, `ikke_relevant`.
 
 ## Sådan finder du den rigtige kunde
