@@ -15,6 +15,10 @@ export async function saveTasks(tasks: Task[], link: { person_id?: string; proje
 //   Indtal          – browseren skriver det, du siger
 //   Kort og præcis  – Claude strammer teksten op og finder dine løfter
 //   Gem             – noten (og de løfter, der har flueben) gemmes
+// Trykker du Gem uden at have brugt "Kort og præcis", og lyder noten som et løfte
+// ("jeg sender", "vil gerne invitere" …), så spørger vi lige Claude først. Finder Claude et løfte,
+// vises det som opgave, og du trykker Gem igen. Din tekst bliver stående, som du skrev den.
+const LOEFTE = /\b(send|sende|sender|lov(e|er|ede|et)|vil gerne|ringer|ringe|invit\w*|følge op|følger op|vende tilbage|vender tilbage|skal huske)\b/i;
 export default function NoteComposer({ id, placeholder, saveLabel, target, autoFocus, onSave }: {
   id: string; placeholder: string; saveLabel: string; target: NoteTarget; autoFocus?: boolean;
   onSave: (text: string, tasks: Task[]) => Promise<void>;
@@ -24,6 +28,7 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
   const [busy, setBusy] = useState(false);
   const [tightening, setTightening] = useState(false);
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
+  const [tjekket, setTjekket] = useState(false); // har Claude set denne tekst?
 
   async function tighten() {
     if (text.trim().length < 3) { setMsg({ text: "Sig eller skriv lidt mere først.", err: true }); return; }
@@ -34,6 +39,7 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
       // Løfter, Claude fandt, lægges oveni dem, du evt. allerede har.
       const found = (f.opgaver ?? []).map(o => ({ tekst: o.tekst, forfald: o.forfald || addDays(today(), 1), med: true }));
       if (found.length) setTasks(ts => [...ts, ...found]);
+      setTjekket(true);
       setMsg({ text: found.length ? `Strammet op. ${found.length} ${found.length === 1 ? "løfte" : "løfter"} fundet.` : "Strammet op." });
     } catch (e) {
       setMsg({ text: errorText(e), err: true });
@@ -46,8 +52,21 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
     if (!text.trim()) { setMsg({ text: "Skriv noten først.", err: true }); return; }
     setBusy(true); setMsg(null);
     try {
+      // Lyder det som et løfte, som Claude ikke har set? Så find løfterne først.
+      if (!tjekket && tasks.length === 0 && LOEFTE.test(text)) {
+        try {
+          const f: Forslag = await structure(text, target ?? undefined);
+          const found = (f.opgaver ?? []).map(o => ({ tekst: o.tekst, forfald: o.forfald || addDays(today(), 1), med: true }));
+          setTjekket(true);
+          if (found.length) {
+            setTasks(found);
+            setMsg({ text: `Claude fandt ${found.length === 1 ? "et løfte" : `${found.length} løfter`}. Tjek og tryk Gem igen.` });
+            return;
+          }
+        } catch { /* Claude kan ikke svare lige nu: gem bare noten */ }
+      }
       await onSave(text, tasks);
-      setText(""); setTasks([]);
+      setText(""); setTasks([]); setTjekket(false);
     } catch (e) {
       setMsg({ text: errorText(e), err: true });
     } finally {
@@ -57,7 +76,7 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
 
   return (
     <div className="composer">
-      <textarea id={id} autoFocus={autoFocus} value={text} onChange={e => setText(e.target.value)}
+      <textarea id={id} autoFocus={autoFocus} value={text} onChange={e => { setText(e.target.value); setTjekket(false); }}
         placeholder={placeholder || (canDictate ? "Skriv, eller tryk på Indtal og fortæl" : "Skriv, eller brug mikrofonen på tastaturet")} />
 
       {tasks.length > 0 && (
@@ -77,7 +96,7 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
       )}
 
       <div className="acts">
-        <DictateButton value={text} onChange={setText} />
+        <DictateButton value={text} onChange={v => { setText(v); setTjekket(false); }} />
         <button type="button" className="ai-btn" onClick={tighten} disabled={tightening || busy || text.trim().length < 3}>
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" />
