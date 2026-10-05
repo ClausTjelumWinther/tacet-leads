@@ -103,6 +103,8 @@ Vælg målet for noten:
 - Findes personen ikke, så brug ny_person med det fulde navn, Claus nævner.
 - Er du i tvivl mellem flere, så sæt sikker=false og vælg det bedste bud.
 
+Stavning: Noten er ofte indtalt, og talegenkendelsen hører navne forkert. "Tacet" er Claus' eget firma (fejlhøres fx som "tasset", "taset", "tacit"). "Velatir" er en samarbejdspartner, der sælger software til AI-governance (fejlhøres fx som "vela tir", "velatier", "fela tir"). "Puls" er Claus' leadsystem. Stav altid disse og navnene på listen nedenfor korrekt.
+
 Opgaver er KUN ting, Claus selv har lovet eller skal gøre. Ikke ting, den anden person skal gøre.
 Brug kun id'er fra listen nedenfor. Opfind aldrig id'er.
 

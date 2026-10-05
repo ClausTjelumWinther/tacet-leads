@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { retNavne } from "./ordbog";
 
 // Diktering: en lille mikrofonknap, der skriver det, du siger, ind i et tekstfelt.
 // Bruger browserens indbyggede talegenkendelse (Chrome, Edge og Safari). Ingen AI, ingen omkostning.
@@ -37,7 +38,7 @@ export function DictateButton({ value, onChange }: { value: string; onChange: (v
       let live = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
-        if (r.isFinal) finals += r[0].transcript + " ";
+        if (r.isFinal) finals += retNavne(r[0].transcript) + " ";
         else live += r[0].transcript;
       }
       onChange((baseRef.current + finals + live).trimStart());

@@ -4,6 +4,7 @@ import {
   type Data, type Forslag,
 } from "./data";
 import { short } from "./dates";
+import { retNavne } from "./ordbog";
 
 // Mikrofonen i tre trin:
 //   1. "lyt"      – telefonens talegenkendelse skriver det ned, mens du taler
@@ -81,7 +82,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
       let live = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
-        if (r.isFinal) finals += r[0].transcript + " ";
+        if (r.isFinal) finals += retNavne(r[0].transcript) + " ";
         else live += r[0].transcript;
       }
       setText((baseRef.current + finals).trimStart());

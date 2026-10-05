@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, type Data } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setVelatir, type Data } from "./data";
 import NextStep from "./NextStep";
 import { Activity, Contact, Group, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
 import NoteComposer, { saveTasks } from "./NoteComposer";
@@ -46,6 +46,12 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
             {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}</span> : null}
             {boldenHosDig(akt) && <span className="ball">Bolden er hos dig</span>}
           </div>
+          {/* Velatir: peger projektet på et Velatir-abonnement? Ét tryk slår det til eller fra. */}
+          <label className="velatir-toggle">
+            <input type="checkbox" checked={p.velatir}
+              onChange={e => run(() => setVelatir(p.id, e.target.checked), e.target.checked ? "Markeret som Velatir" : "Velatir-markering fjernet")} />
+            <span>Velatir-lead</span>
+          </label>
         </header>
         {flashEl}
         <div className="fgrid">

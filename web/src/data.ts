@@ -272,6 +272,12 @@ export async function addOpslag(dato: string, tekst: string, url: string): Promi
   if (error) throw error;
 }
 
+/** Sæt eller fjern Velatir-markeringen på et projekt (peger på et Velatir-abonnement). */
+export async function setVelatir(id: string, velatir: boolean): Promise<void> {
+  const { error } = await supabase.from("projekter").update({ velatir }).eq("id", id);
+  if (error) throw error;
+}
+
 /** Over 20 funktionærer? true/false, eller null hvis du ikke ved det. */
 export async function setOver20(virksomhedId: string, over20: boolean | null): Promise<void> {
   const { error } = await supabase.from("virksomheder").update({ over20 }).eq("id", virksomhedId);

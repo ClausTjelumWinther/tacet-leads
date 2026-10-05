@@ -232,3 +232,7 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .promises .p-tekst{min-width:0;overflow-wrap:anywhere}
 .promises .side{display:flex;gap:6px;align-items:center;flex-shrink:0}
 .promises li.done .p-tekst{color:var(--muted)}
+
+/* Velatir-markering på projektkortet */
+.velatir-toggle{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:13px;cursor:pointer;background:var(--surface)}
+.velatir-toggle input{width:16px;height:16px;accent-color:var(--accent)}
