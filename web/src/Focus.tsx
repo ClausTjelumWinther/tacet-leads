@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setVelatir, type Data } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setGenkoeb, setVelatir, type Data } from "./data";
 import NextStep from "./NextStep";
+import { kundeStatus } from "./Kunder";
 import { Activity, Contact, Group, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
 import NoteComposer, { saveTasks } from "./NoteComposer";
 
@@ -82,6 +83,10 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
                 </>
               )}
             </section>
+            {p.stage === "kunde" && (
+              <Genkoeb key={p.id} genkoeb={p.genkoeb} sidste={kundeStatus(p, data).sidste} naeste={kundeStatus(p, data).naeste}
+                onSave={(g, d) => run(() => setGenkoeb(p.id, g, d), "Genkøb er gemt")} />
+            )}
             <section className="panel">
               <label className="sec" htmlFor="note">Notér</label>
               <NoteComposer key={p.id} id="note" placeholder="" saveLabel="Gem note" target={{ type: "projekt", id: p.id }}
@@ -157,5 +162,31 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Genkøb på en kunde: én linje om det næste oplagte salg, og hvornår vi sidst leverede. */
+function Genkoeb({ genkoeb, sidste, naeste, onSave }: {
+  genkoeb: string | null; sidste: string | null; naeste: string | null;
+  onSave: (genkoeb: string, sidste: string | null) => Promise<void>;
+}) {
+  const [tekst, setTekst] = useState(genkoeb ?? "");
+  const [dato, setDato] = useState(sidste ?? "");
+  const [busy, setBusy] = useState(false);
+  const aendret = tekst !== (genkoeb ?? "") || dato !== (sidste ?? "");
+  return (
+    <section className="panel">
+      <div className="sec">Genkøb</div>
+      <input className="task-text" value={tekst} placeholder="Fx: Hold 2 i undervisning, AI Champion-opfølgning, Velatir" aria-label="Genkøbsidé"
+        onChange={e => setTekst(e.target.value)} style={{ width: "100%" }} />
+      <div className="acts">
+        <span className="lbl">Sidst leveret</span>
+        <input type="date" className="task-date" value={dato} max={today()} onChange={e => setDato(e.target.value)} aria-label="Sidst leveret" />
+        {naeste && <span className="muted small">Næste leverance {short(naeste)}</span>}
+        <button type="button" className="btn primary" disabled={!aendret || busy}
+          onClick={async () => { setBusy(true); try { await onSave(tekst, dato || null); } finally { setBusy(false); } }}>
+          {busy ? "Gemmer…" : "Gem"}</button>
+      </div>
+    </section>
   );
 }

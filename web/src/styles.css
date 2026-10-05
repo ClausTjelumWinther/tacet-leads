@@ -236,3 +236,9 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 /* Velatir-markering på projektkortet */
 .velatir-toggle{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:13px;cursor:pointer;background:var(--surface)}
 .velatir-toggle input{width:16px;height:16px;accent-color:var(--accent)}
+
+/* Kunder */
+.kunder-intro{margin:0 0 10px}
+.row.kunde .genkoeb{grid-column:1 / -1;font-size:13px;color:var(--accent);font-weight:500}
+.row.kunde .genkoeb.none{color:var(--muted);font-weight:400;font-style:italic}
+.row.kunde .pill{margin-left:6px;font-size:11px}

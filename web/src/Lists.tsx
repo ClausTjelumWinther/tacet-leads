@@ -4,11 +4,13 @@ import { ACTIVE, STAGES, acceptForslag, completeTask, errorText, rejectForslag, 
 import { ForslagRow, Group, PersonRow, ProjectRow, TaskRow } from "./parts";
 import type { FocusKey } from "./Focus";
 import Maal from "./Maal";
+import Kunder from "./Kunder";
 
-export type Tab = "idag" | "pipeline" | "netvaerk" | "velatir" | "personer" | "maal";
+export type Tab = "idag" | "pipeline" | "kunder" | "netvaerk" | "velatir" | "personer" | "maal";
 export const TABS: { key: Tab; label: string }[] = [
   { key: "idag", label: "I dag" },
   { key: "pipeline", label: "Pipeline" },
+  { key: "kunder", label: "Kunder" },
   { key: "netvaerk", label: "Netværk" },
   { key: "velatir", label: "Velatir" },
   { key: "personer", label: "Personer" },
@@ -38,6 +40,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     velatir: data.projekter.filter(p => p.velatir).length,
     personer: data.personer.filter(x => showPrivate || x.kategori !== "privat").length,
     maal: data.arrangementer.filter(a => a.dato >= t).length,
+    kunder: data.projekter.filter(p => p.stage === "kunde").length,
   };
 
   let body;
@@ -57,8 +60,8 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     const live = projekter.filter(p => p.stage !== "tabt");
     const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).sort(byDate);
     const soon = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= w).sort(byDate);
-    // Et lead skal altid have en kommende action med dato. Netværk tæller med her.
-    const nodate = live.filter(p => (ACTIVE.includes(p.stage) || p.stage === "netvaerk") && (!p.naeste_skridt?.trim() || !p.naeste_skridt_dato));
+    // Et lead skal altid have en kommende action med dato. Netværk og kunder tæller med her.
+    const nodate = live.filter(p => (ACTIVE.includes(p.stage) || p.stage === "netvaerk" || p.stage === "kunde") && (!p.naeste_skridt?.trim() || !p.naeste_skridt_dato));
     const tasks = data.opgaver
       .filter(o => hit(o.tekst, o.person?.navn, o.projekt?.firma?.firmanavn))
       .sort((a, b) => (a.forfald ?? "9999").localeCompare(b.forfald ?? "9999"));
@@ -85,6 +88,9 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
       </div>
       </>
     );
+  } else if (tab === "kunder") {
+    // Kunderne har deres egen fane, så pipelinen kan handle om salg.
+    body = <Kunder data={data} onOpen={onOpen} />;
   } else if (tab === "maal") {
     // Mål har sin egen side, så I dag-fokus ikke forstyrres.
     body = <Maal data={data} onOpen={onOpen} onChanged={onChanged} />;
@@ -98,7 +104,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     body = (
       <div className="grid split">
         <div>{col("tilbud")}{col("dialog")}</div>
-        <div>{col("lead")}{col("kunde")}<div className="empty">{lost} tabte projekter er skjult.</div></div>
+        <div>{col("lead")}<div className="empty">Kunder står under fanen Kunder. {lost} tabte projekter er skjult.</div></div>
       </div>
     );
   } else if (tab === "netvaerk") {

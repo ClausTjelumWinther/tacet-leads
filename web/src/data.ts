@@ -15,6 +15,9 @@ export interface Projekt {
   naeste_skridt_dato: string | null;
   noter: string | null;
   velatir: boolean;
+  dato: string | null;              // hvornår projektet blev solgt/startede
+  genkoeb: string | null;           // næste oplagte salg hos en kunde
+  sidste_leverance: string | null;  // hvornår vi sidst leverede
   firma: { firmanavn: string; kontaktperson: string | null; email: string | null; mobilnummer: string | null; over20: boolean | null } | null;
 }
 
@@ -106,7 +109,7 @@ export const KATEGORI: Record<Person["kategori"], string> = { privat: "Privat", 
 export async function loadAll(): Promise<Data> {
   const [p, pe, o, h, f, m, ml, ar, de, lo, op] = await Promise.all([
     supabase.from("projekter").select(
-      "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, " +
+      "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
       "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20)"),
     supabase.from("personer").select(
       "id, navn, kategori, virksomhed_id, email, mobilnummer, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
@@ -269,6 +272,13 @@ export async function setDeltagerStatus(id: string, status: DeltagerStatus): Pro
 /** Registrér et LinkedIn-opslag (fra fanen Mål). */
 export async function addOpslag(dato: string, tekst: string, url: string): Promise<void> {
   const { error } = await supabase.from("opslag").insert({ dato, tekst: tekst.trim() || null, url: url.trim() || null });
+  if (error) throw error;
+}
+
+/** Genkøbsidé og sidste leverance på en kunde. */
+export async function setGenkoeb(id: string, genkoeb: string, sidste_leverance: string | null): Promise<void> {
+  const { error } = await supabase.from("projekter")
+    .update({ genkoeb: genkoeb.trim() || null, sidste_leverance: sidste_leverance || null }).eq("id", id);
   if (error) throw error;
 }
 
