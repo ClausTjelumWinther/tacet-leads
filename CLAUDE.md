@@ -34,6 +34,7 @@ Status-værdier i `linkedin_outreach.status`: `pa_listen`, `besked_sendt`, `i_di
 
 Match i denne rækkefølge, og spørg kun hvis der stadig er tvivl:
 
+0. Gmail-label `Kunder/<navn>` (Claus' egne mapper, se listen i `docs/morgen-sync.md`)
 1. Maildomæne (fx `tempursealy.com`) mod `virksomheder.email` og mod Gmail-tråde
 2. Kontaktperson (`virksomheder.kontaktperson`)
 3. Firmanavn, også delvist
