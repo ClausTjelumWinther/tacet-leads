@@ -58,7 +58,9 @@ on conflict (kilde) do nothing;
 - **Over 20 funktionærer:** sæt aldrig `virksomheder.over20` selv. Claus svarer Ja/Nej i appen.
 
 ### 4. Ukendte personer → forslag
-Når Claus selv har skrevet til, mødtes med eller inviteret en adresse, der ikke findes i `personer`, og den ikke er en ren systemadresse:
+Når Claus selv har skrevet til, mødtes med eller inviteret en adresse, der ikke findes i `personer`, og den ikke er en ren systemadresse.
+
+**Er personen allerede kendt, så spørg ikke.** Spring over, hvis adressen står i `virksomheder.email`, eller navnet står i `virksomheder.kontaktperson`. Så er de kontakt på firmakortet, og Claus kender dem. Tjek også `forslag` for samme adresse med status `afvist`; har Claus sagt nej én gang, så spørg ikke igen.
 ```sql
 insert into forslag (type, tekst, data, kilde)
 values ('ny_person', $t$Opret Otto Spliid som kontakt – inviteret til AI-middagen 22/10$t$,
