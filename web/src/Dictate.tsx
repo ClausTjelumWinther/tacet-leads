@@ -10,7 +10,8 @@ const SpeechRec: any = typeof window !== "undefined" && ((window as any).SpeechR
 /** Kan denne browser lytte? Hvis ikke, viser vi slet ikke knappen. */
 export const canDictate = !!SpeechRec;
 
-export function DictateButton({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/** compact = kun mikrofon-ikonet, til steder hvor der er trangt (fx "Til mig selv"). */
+export function DictateButton({ value, onChange, compact }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,12 +76,12 @@ export function DictateButton({ value, onChange }: { value: string; onChange: (v
 
   return (
     <>
-      <button type="button" className={`dictate${listening ? " on" : ""}`} onClick={listening ? stop : start}
+      <button type="button" className={`dictate${listening ? " on" : ""}${compact ? " compact" : ""}`} onClick={listening ? stop : start}
         aria-pressed={listening} aria-label={listening ? "Stop diktering" : "Indtal med mikrofonen"}>
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
         </svg>
-        <span>{listening ? "Stop" : "Indtal"}</span>
+        {!compact && <span>{listening ? "Stop" : "Indtal"}</span>}
       </button>
       {error && <span className="status err">{error}</span>}
     </>

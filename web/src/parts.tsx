@@ -56,7 +56,7 @@ export function PersonRow({ x, onOpen }: { x: Person; onOpen: () => void }) {
   );
 }
 
-export function TaskRow({ o, onDone, mine }: { o: Opgave; onDone: () => Promise<void>; mine?: boolean }) {
+export function TaskRow({ o, onDone }: { o: Opgave; onDone: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const who = o.person?.navn || o.projekt?.firma?.firmanavn?.trim() || "";
   return (
@@ -68,8 +68,7 @@ export function TaskRow({ o, onDone, mine }: { o: Opgave; onDone: () => Promise<
           {busy ? "Gemmer…" : "Færdig"}
         </button>
       </span>
-      {/* Dine egne huskepunkter hænger ikke på en person, så linjen udelades. */}
-      {!mine && <span className={`next${who ? "" : " none"}`}>{who || "Uden person"}</span>}
+      <span className={`next${who ? "" : " none"}`}>{who || "Uden person"}</span>
     </div>
   );
 }
