@@ -25,6 +25,8 @@ Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer
 
 **Opgaver** (`opgaver`) er små løfter og huskepunkter ("send Christian kontakt til Claus Haugaard"). De kan hænge på en person eller et projekt og bliver ved med at dukke op, indtil de er markeret `faerdig`. `items` er en indkøbsliste og hører ikke til leadsystemet. Rør den ikke.
 
+**Til mig selv** (`opgaver.til_mig = true`) er små ting, Claus selv skal huske ("køb en Sonos-højttaler", "tal med renseriet"). Siger han "husk: …" eller "jeg skal huske at …" uden en person eller kunde, så indsæt en række med `til_mig = true` og kun dato, hvis han nævner en. De vises under *Til mig selv* på *I dag* og er **ikke løfter**: de tæller ikke i "holdt inden 48 timer", kommer ikke med i top 3, "Hvad har jeg lovet?" eller "Husk også", medmindre Claus spørger "hvad skal jeg huske?".
+
 Stage-værdier i `projekter.stage`: `lead`, `dialog`, `tilbud`, `kunde`, `tabt`, `netvaerk`.
 
 **Netværk** (`stage = 'netvaerk'`) er leadgeneratorer: folk og firmaer, der skaffer Claus kunder, men aldrig selv bliver kunder hos Tacet. Fx Martin Brems (Brems & Co), Ole Schmidt (Aider), Jan Jessen (Training Gallery). De har næste skridt ligesom alle andre, men tælles aldrig med i pipelineværdien.

@@ -24,7 +24,7 @@ const tool = {
   input_schema: {
     type: "object",
     properties: {
-      maal_type: { type: "string", enum: ["person", "projekt", "ny_person"], description: "Hvad noten skal gemmes på." },
+      maal_type: { type: "string", enum: ["person", "projekt", "ny_person", "mig_selv"], description: "Hvad noten skal gemmes på. mig_selv = noget Claus selv skal huske, uden en person eller kunde." },
       maal_id: { type: "string", description: "id fra listen. Udelades ved ny_person." },
       ny_person_navn: { type: "string", description: "Fulde navn, kun ved ny_person." },
       note: { type: "string", description: "Kort og præcis note på dansk i jeg-form, uden dato. Fjern fyldord, gentagelser og talesprog, men bevar ALLE konkrete detaljer (navne, familie, interesser, tal, aftaler)." },
@@ -35,7 +35,7 @@ const tool = {
           type: "object",
           properties: {
             tekst: { type: "string", description: "Kort og handlingsrettet, fx 'Send Ole oplægget om AI i bestyrelser'." },
-            forfald: { type: "string", description: "YYYY-MM-DD. Standard er i morgen." },
+            forfald: { type: "string", description: "YYYY-MM-DD. Standard er i morgen. Ved mig_selv: tom streng, medmindre Claus nævner en dag." },
           },
           required: ["tekst", "forfald"],
         },
@@ -102,6 +102,7 @@ Vælg målet for noten:
 - Handler den om et firma eller en aftale uden en person på listen, så vælg projektet.
 - Findes personen ikke, så brug ny_person med det fulde navn, Claus nævner.
 - Er du i tvivl mellem flere, så sæt sikker=false og vælg det bedste bud.
+- Er det noget, Claus bare selv skal huske, og ikke et løfte til en bestemt person eller kunde ("jeg skal huske at købe en Sonos-højttaler", "tal med renseriet"), så brug mig_selv. Læg hver ting i opgaver som en kort, handlingsrettet linje, og lad note være en kort samlet tekst. Et firma som "renseriet" eller "Sonos" er ikke en kunde.
 
 Stavning: Noten er ofte indtalt, og talegenkendelsen hører navne forkert. "Tacet" er Claus' eget firma (fejlhøres fx som "tasset", "taset", "tacit"). "Velatir" er en samarbejdspartner, der sælger software til AI-governance (fejlhøres fx som "vela tir", "velatier", "fela tir"). "Puls" er Claus' leadsystem. Stav altid disse og navnene på listen nedenfor korrekt.
 
@@ -158,6 +159,8 @@ ${[...personer, ...projekter].join("\n")}`;
     // Tjek at id'et faktisk findes, og find et læsbart navn til appen.
     if (fast) {
       Object.assign(forslag, { maal_type: fast.type, maal_id: fast.id, maal_navn: fast.navn, sikker: true });
+    } else if (forslag.maal_type === "mig_selv") {
+      forslag.maal_navn = "Til mig selv"; forslag.sikker = true;
     } else if (forslag.maal_type !== "ny_person") {
       const hit = alle.find(a => a.id === forslag.maal_id && a.type === forslag.maal_type);
       if (!hit) { forslag.maal_type = "ny_person"; forslag.sikker = false; forslag.ny_person_navn ??= ""; }

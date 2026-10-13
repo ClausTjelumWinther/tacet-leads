@@ -5,6 +5,7 @@ import { ForslagRow, Group, PersonRow, ProjectRow, TaskRow } from "./parts";
 import type { FocusKey } from "./Focus";
 import Maal from "./Maal";
 import Kunder from "./Kunder";
+import Mine from "./Mine";
 
 export type Tab = "idag" | "pipeline" | "kunder" | "netvaerk" | "velatir" | "personer" | "maal";
 export const TABS: { key: Tab; label: string }[] = [
@@ -83,6 +84,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
           <Group id="loefter" title="Små løfter" count={tasks.length} empty="Ingen åbne løfter.">
             {tasks.map(o => <TaskRow key={o.id} o={o} onDone={async () => { await completeTask(o.id); await onChanged(); }} />)}
           </Group>
+          <Mine data={data} onChanged={onChanged} />
           <Group title="Mangler næste skridt" count={nodate.length} warn={nodate.length > 0} empty="Alle leads har et næste skridt med dato.">{nodate.map(pRow)}</Group>
         </div>
       </div>

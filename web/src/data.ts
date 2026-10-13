@@ -95,6 +95,8 @@ export interface Data {
   deltagere: Deltager[];
   loefter: LoefteStat[];
   opslag: Opslag[];
+  /** Små ting du selv skal huske (til_mig = true). Ikke løfter. */
+  mine: Opgave[];
 }
 
 export const STAGES: Record<Stage, string> = {
@@ -107,14 +109,14 @@ export const KATEGORI: Record<Person["kategori"], string> = { privat: "Privat", 
 
 /** Henter alt på én gang. Navnet før kolon ("firma:") omdøber den tilknyttede tabel. */
 export async function loadAll(): Promise<Data> {
-  const [p, pe, o, h, f, m, ml, ar, de, lo, op] = await Promise.all([
+  const [p, pe, o, h, f, m, ml, ar, de, lo, op, mi] = await Promise.all([
     supabase.from("projekter").select(
       "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
       "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20)"),
     supabase.from("personer").select(
       "id, navn, kategori, virksomhed_id, email, mobilnummer, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
     supabase.from("opgaver").select(
-      "id, tekst, forfald, person:personer(navn), projekt:projekter(firma:virksomheder(firmanavn))").eq("faerdig", false),
+      "id, tekst, forfald, person:personer(navn), projekt:projekter(firma:virksomheder(firmanavn))").eq("faerdig", false).eq("til_mig", false),
     supabase.from("haendelser").select("id, dato, type, titel, email, person_id, projekt_id")
       .order("dato", { ascending: false }).limit(1000),
     supabase.from("forslag").select("id, type, tekst, data, person_id, projekt_id").eq("status", "aaben").order("oprettet"),
@@ -122,10 +124,12 @@ export async function loadAll(): Promise<Data> {
     supabase.from("maalinger").select("dato, noegle, vaerdi, detaljer").order("dato", { ascending: false }).limit(200),
     supabase.from("arrangementer").select("id, navn, dato, sted, rolle").order("dato"),
     supabase.from("deltagere").select("id, arrangement_id, navn, email, person_id, projekt_id, status").order("navn"),
-    supabase.from("opgaver").select("id, tekst, person_id, projekt_id, forfald, oprettet, faerdig, faerdig_dato").order("oprettet", { ascending: false }),
+    supabase.from("opgaver").select("id, tekst, person_id, projekt_id, forfald, oprettet, faerdig, faerdig_dato").eq("til_mig", false).order("oprettet", { ascending: false }),
     supabase.from("opslag").select("id, dato, tekst, url").order("dato", { ascending: false }),
+    // Dine egne huskepunkter holdes adskilt fra løfterne ovenfor.
+    supabase.from("opgaver").select("id, tekst, forfald").eq("faerdig", false).eq("til_mig", true).order("oprettet"),
   ]);
-  const err = p.error || pe.error || o.error || h.error || f.error || m.error || ml.error || ar.error || de.error || lo.error || op.error;
+  const err = p.error || pe.error || o.error || h.error || f.error || m.error || ml.error || ar.error || de.error || lo.error || op.error || mi.error;
   if (err) throw err;
   return {
     projekter: (p.data ?? []) as unknown as Projekt[],
@@ -138,6 +142,7 @@ export async function loadAll(): Promise<Data> {
     arrangementer: (ar.data ?? []) as Arrangement[],
     deltagere: (de.data ?? []) as Deltager[],
     loefter: (lo.data ?? []) as LoefteStat[],
+    mine: ((mi.data ?? []) as { id: string; tekst: string; forfald: string | null }[]).map(x => ({ ...x, person: null, projekt: null })),
     opslag: (op.data ?? []) as Opslag[],
   };
 }
@@ -179,7 +184,7 @@ export async function createPerson(navn: string, note: string): Promise<string> 
 // ---------- Mikrofonen: Claude sorterer, du godkender ----------
 
 export interface Forslag {
-  maal_type: "person" | "projekt" | "ny_person";
+  maal_type: "person" | "projekt" | "ny_person" | "mig_selv";
   maal_id?: string;
   maal_navn?: string;
   ny_person_navn?: string;
@@ -210,6 +215,12 @@ export async function createTask(tekst: string, forfald: string, link: { person_
 }
 
 /** Det nuværende skridt er klaret: skriv det i historikken og sæt det næste. */
+/** Et huskepunkt til dig selv. Dato er valgfri: meget er bare "en dag". */
+export async function createMine(tekst: string, forfald: string | null = null): Promise<void> {
+  const { error } = await supabase.from("opgaver").insert({ tekst, forfald, til_mig: true });
+  if (error) throw error;
+}
+
 export async function completeStep(id: string, gammelt: string | null, tekst: string, dato: string): Promise<void> {
   if (gammelt?.trim()) await addNote("projekt", id, `Klaret: ${gammelt.trim()}`);
   await setNextStep(id, tekst, dato);

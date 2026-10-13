@@ -242,3 +242,8 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .row.kunde .genkoeb{grid-column:1 / -1;font-size:13px;color:var(--accent);font-weight:500}
 .row.kunde .genkoeb.none{color:var(--muted);font-weight:400;font-style:italic}
 .row.kunde .pill{margin-left:6px;font-size:11px}
+
+/* "Til mig selv": tilføj-linjen under listen */
+.mine-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 0; }
+.mine-add input:not([type="date"]) { flex: 1 1 180px; min-width: 0; }
+.mine-add input[type="date"] { flex: 0 0 auto; }

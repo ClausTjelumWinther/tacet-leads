@@ -206,7 +206,7 @@ textarea{width:100%;box-sizing:border-box;min-height:72px;border:1px solid var(-
   const LOAD = `select json_build_object(
     'p',(select coalesce(json_agg(x),'[]'::json) from (select p.id,p.virksomhed_id as vid,p.produkt,p.stage,p.vaerdi,p.naeste_skridt,p.naeste_skridt_dato,p.noter,p.velatir,v.firmanavn,v.kontaktperson,v.email,v.mobilnummer from projekter p left join virksomheder v on v.id=p.virksomhed_id) x),
     'pe',(select coalesce(json_agg(x),'[]'::json) from (select pe.id,pe.virksomhed_id as vid,pe.navn,pe.kategori,pe.email,pe.mobilnummer,pe.noter,pe.sidste_kontakt,v.firmanavn from personer pe left join virksomheder v on v.id=pe.virksomhed_id) x),
-    'o',(select coalesce(json_agg(x),'[]'::json) from (select o.id,o.tekst,o.forfald,pe.navn as person,v.firmanavn as firma from opgaver o left join personer pe on pe.id=o.person_id left join projekter p on p.id=o.projekt_id left join virksomheder v on v.id=p.virksomhed_id where not o.faerdig) x)
+    'o',(select coalesce(json_agg(x),'[]'::json) from (select o.id,o.tekst,o.forfald,pe.navn as person,v.firmanavn as firma from opgaver o left join personer pe on pe.id=o.person_id left join projekter p on p.id=o.projekt_id left join virksomheder v on v.id=p.virksomhed_id where not o.faerdig and not o.til_mig) x)
   ) as d`;
 
   let retried = false;

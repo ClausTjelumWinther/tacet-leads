@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  addNote, createPerson, createTask, errorText, projectName, setNextStep, structure,
+  addNote, createMine, createPerson, createTask, errorText, projectName, setNextStep, structure,
   type Data, type Forslag,
 } from "./data";
 import { short } from "./dates";
@@ -12,7 +12,9 @@ import { retNavne } from "./ordbog";
 //   3. "forslag"  – du ser forslaget, retter hvis nødvendigt og trykker Gem
 
 type Step = "lyt" | "sorterer" | "forslag" | "gemmer";
-type Target = { type: "person" | "projekt"; id: string; navn: string } | { type: "ny"; navn: string };
+type Target = { type: "person" | "projekt"; id: string; navn: string } | { type: "ny"; navn: string }
+  | { type: "mig"; navn: string };   // "mig" = huskepunkt til dig selv (køb Sonos, tal med renseriet)
+const MIG: Target = { type: "mig", navn: "Til mig selv" };
 
 // ---------- Kladde: en indtalt note må aldrig forsvinde ----------
 // Alt, hvad du har sagt, gemmes løbende i telefonens hukommelse (localStorage),
@@ -135,10 +137,10 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
       setNote(f.note);
       setTasks((f.opgaver ?? []).map(o => ({ ...o, med: true })));
       setUseNext(false); // næste skridt ændres kun, hvis du selv sætter flueben
-      setTarget(f.maal_type === "ny_person"
-        ? { type: "ny", navn: f.ny_person_navn ?? "" }
+      setTarget(f.maal_type === "mig_selv" ? MIG
+        : f.maal_type === "ny_person" ? { type: "ny", navn: f.ny_person_navn ?? "" }
         : { type: f.maal_type, id: f.maal_id!, navn: f.maal_navn ?? "" });
-      setPicking(!f.sikker || (f.maal_type === "ny_person" && !f.ny_person_navn));
+      setPicking(f.maal_type !== "mig_selv" && (!f.sikker || (f.maal_type === "ny_person" && !f.ny_person_navn)));
       setStep("forslag");
     } catch (e) {
       setError(errorText(e));
@@ -159,6 +161,14 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
     if (!note.trim()) { setError("Noten er tom."); return; }
     setStep("gemmer"); setError("");
     try {
+      if (target.type === "mig") {
+        // Til dig selv: hver ting bliver et huskepunkt. Fandt Claude ingen, bliver hele noten ét.
+        const valgt = tasks.filter(t => t.med && t.tekst.trim());
+        if (valgt.length) for (const t of valgt) await createMine(t.tekst.trim(), t.forfald || null);
+        else await createMine(note.trim());
+        savedRef.current = true; writeDraft(null); await onSaved(); onClose();
+        return;
+      }
       let link: { person_id?: string; projekt_id?: string };
       if (target.type === "ny") link = { person_id: await createPerson(target.navn, note) };
       else {
@@ -224,7 +234,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
             {!picking && target ? (
               <div className="chosen">
                 <span><b>{target.type === "ny" ? `Ny kontakt: ${target.navn}` : target.navn}</b>
-                  {target.type !== "ny" && <span className="muted"> · {target.type === "person" ? "Person" : "Projekt"}</span>}</span>
+                  {(target.type === "person" || target.type === "projekt") && <span className="muted"> · {target.type === "person" ? "Person" : "Projekt"}</span>}</span>
                 <button type="button" className="linkbtn" onClick={() => setPicking(true)}>Skift</button>
               </div>
             ) : (
@@ -237,7 +247,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
 
             {tasks.length > 0 && (
               <div className="tasks">
-                <div className="sec">Dine løfter · med flueben bliver de til opgaver</div>
+                <div className="sec">{target?.type === "mig" ? "Det, du skal huske · med flueben kommer de på listen" : "Dine løfter · med flueben bliver de til opgaver"}</div>
                 {tasks.map((t, i) => (
                   <div className="task-edit" key={i}>
                     <input type="checkbox" id={`vn-t${i}`} checked={t.med} aria-label="Tag med"
@@ -297,6 +307,10 @@ function Picker({ data, initial, hint, onPick }: { data: Data; initial: string; 
             <span className="side"><span className="pill">{h.type === "person" ? "Person" : "Projekt"}</span></span>
           </button>
         ))}
+        <button type="button" className="row" onClick={() => onPick(MIG)}>
+          <span className="who">Til mig selv</span>
+          <span className="side"><span className="pill">Husk</span></span>
+        </button>
         {q.trim().length > 1 && (
           <button type="button" className="row" onClick={() => onPick({ type: "ny", navn: q.trim() })}>
             <span className="who">Opret “{q.trim()}” som ny kontakt</span>
