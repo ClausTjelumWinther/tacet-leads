@@ -3,7 +3,7 @@ import {
   addNote, createLead, createMine, createPerson, createTask, errorText, projectName, setNextStep, structure,
   type Data, type Forslag, type NytLead,
 } from "./data";
-import LeadFields, { leadMangler, tomtLead } from "./LeadFields";
+import LeadFields, { DubletAdvarsel, leadMangler, tomtLead } from "./LeadFields";
 import { short } from "./dates";
 import { retNavne } from "./ordbog";
 
@@ -266,7 +266,12 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
                 }} />
             )}
 
-            {target?.type === "lead" && !picking && <LeadFields idPrefix="vl" value={lead} onChange={setLead} />}
+            {target?.type === "lead" && !picking && (
+              <>
+                <DubletAdvarsel navn={lead.firmanavn} data={data} onBrug={p => setTarget({ type: "projekt", id: p.id, navn: projectName(p) })} />
+                <LeadFields idPrefix="vl" value={lead} onChange={setLead} />
+              </>
+            )}
 
             <label className="sec" htmlFor="vn-note">Noten</label>
             <textarea id="vn-note" value={note} onChange={e => setNote(e.target.value)} />

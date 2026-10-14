@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addNote, createLead, createNetvaerk, createPerson, errorText, projectName, type Data, type NyNetvaerk, type NytLead } from "./data";
-import LeadFields, { NetvaerkFields, leadMangler, netvaerkMangler, tomtLead, tomtNetvaerk } from "./LeadFields";
+import LeadFields, { DubletAdvarsel, NetvaerkFields, leadMangler, netvaerkMangler, tomtLead, tomtNetvaerk } from "./LeadFields";
 import { DictateButton } from "./Dictate";
 import NoteComposer, { saveTasks, type Task } from "./NoteComposer";
 
@@ -131,6 +131,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
         ) : target.kind === "net" ? (
           <>
             <button type="button" className="linkbtn back" onClick={() => { setTarget(null); setMsg(null); }}>← Tilbage til søgning</button>
+            <DubletAdvarsel navn={net.firma || ""} data={data} onBrug={p => { setMsg(null); setTarget({ kind: "projekt", id: p.id, label: projectName(p) }); }} />
             <NetvaerkFields idPrefix="qnw" value={net} onChange={setNet} />
             <label className="sec" htmlFor="qnw-note">Note <span className="muted small">valgfri</span></label>
             <div className="composer">
@@ -144,6 +145,8 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
         ) : target.kind === "lead" ? (
           <>
             <button type="button" className="linkbtn back" onClick={() => { setTarget(null); setMsg(null); }}>← Tilbage til søgning</button>
+            {/* Findes firmaet allerede, så skriv hellere en note på det eksisterende. */}
+            <DubletAdvarsel navn={lead.firmanavn} data={data} onBrug={p => { setMsg(null); setTarget({ kind: "projekt", id: p.id, label: projectName(p) }); }} />
             <LeadFields idPrefix="ql" value={lead} onChange={setLead} />
             <label className="sec" htmlFor="ql-note">Note <span className="muted small">valgfri</span></label>
             <div className="composer">

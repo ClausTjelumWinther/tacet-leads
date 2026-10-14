@@ -1,4 +1,4 @@
-import type { NytLead, NyNetvaerk } from "./data";
+import { STAGES, projectName, type Data, type NytLead, type NyNetvaerk, type Projekt } from "./data";
 import { addDays, today } from "./dates";
 
 // Felterne til et nyt lead. Bruges både i "+ Note" (når du skriver) og ved mikrofonen (når Claude har udfyldt dem).
@@ -99,6 +99,41 @@ export function NetvaerkFields({ value, onChange, idPrefix }: { value: NyNetvaer
         <input id={id("ns")} value={value.naeste_skridt} onChange={set("naeste_skridt")} placeholder="Fx foreslå en kop kaffe" autoComplete="off" />
         <input type="date" aria-label="Dato for næste skridt" value={value.naeste_skridt_dato} onChange={set("naeste_skridt_dato")} />
       </div>
+    </div>
+  );
+}
+
+// ---------- Findes firmaet allerede? ----------
+// "Lundberg Tech" og "Lundberg Tech A/S" er det samme firma. Vi sammenligner navne uden
+// selskabsform og tegn, og advarer, før der oprettes en dublet.
+
+const rens = (s: string) => s.toLowerCase()
+  .replace(/\b(a\/s|aps|i\/s|p\/s|k\/s|as)\b/g, "")
+  .replace(/[^a-z0-9æøå]+/g, " ").trim();
+
+/** Projekter (ikke tabte), hvis firmanavn ligner navnet. */
+export function findDubletter(navn: string, data: Data): Projekt[] {
+  const n = rens(navn);
+  if (n.length < 3) return [];
+  return data.projekter.filter(p => {
+    if (p.stage === "tabt" || !p.firma) return false;
+    const f = rens(p.firma.firmanavn);
+    return f.length >= 3 && (f === n || f.startsWith(n) || n.startsWith(f));
+  });
+}
+
+/** Gul boks over formularen: "Findes allerede". Tryk for at bruge det eksisterende i stedet. */
+export function DubletAdvarsel({ navn, data, onBrug }: { navn: string; data: Data; onBrug: (p: Projekt) => void }) {
+  const hits = findDubletter(navn, data);
+  if (!hits.length) return null;
+  return (
+    <div className="dublet" role="status">
+      <b>{hits.length === 1 ? "Findes allerede:" : "Ligner nogle, der allerede findes:"}</b>
+      {hits.slice(0, 3).map(p => (
+        <button type="button" key={p.id} className="linkbtn" onClick={() => onBrug(p)}>
+          {projectName(p)} · {STAGES[p.stage]} → brug den i stedet
+        </button>
+      ))}
     </div>
   );
 }

@@ -285,3 +285,7 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .row.new-lead .who{color:var(--accent);font-weight:500}
 .pill.lead{border-color:var(--accent);color:var(--accent)}
 .linkbtn.back{align-self:flex-start;padding:0;margin-top:-6px}
+/* Advarsel om dublet ved oprettelse af lead/netværk */
+.dublet{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--ink);font-size:14px}
+.dublet b{color:var(--warn);font-weight:600}
+.dublet .linkbtn{padding:0;text-align:left}
