@@ -25,7 +25,7 @@ Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer
 
 **Opgaver** (`opgaver`) er små løfter og huskepunkter ("send Christian kontakt til Claus Haugaard"). De kan hænge på en person eller et projekt og bliver ved med at dukke op, indtil de er markeret `faerdig`. `items` er en indkøbsliste og hører ikke til leadsystemet. Rør den ikke.
 
-**Mapper:** alle leads og kunder har en mappe i Gmail (`Kunder/<navn>`, gemt i `virksomheder.gmail_label`) og på Drive (`01 Tacet/Kunder/<navn>`, id i `virksomheder.drive_mappe_id`). Morgen-gennemgangen opretter de manglende. Flyt aldrig mails ind i mapperne; det gør Claus selv, når han har læst dem.
+**Mapper:** kunder og leads med en dialog i gang (kontaktperson eller mail/møde) har en mappe i Gmail (`Kunder/<navn>`, gemt i `virksomheder.gmail_label`) og på Drive (`01 Tacet/Kunder/<navn>`, id i `virksomheder.drive_mappe_id`). Morgen-gennemgangen opretter de manglende. Flyt aldrig mails ind i mapperne; det gør Claus selv, når han har læst dem.
 
 **Til mig selv** (`opgaver.til_mig = true`) er små ting, Claus selv skal huske ("køb en Sonos-højttaler", "tal med renseriet"). Siger han "husk: …" eller "jeg skal huske at …" uden en person eller kunde, så indsæt en række med `til_mig = true` og kun dato, hvis han nævner en. De vises under *Til mig selv* på *I dag* og er **ikke løfter**: de tæller ikke i "holdt inden 48 timer", kommer ikke med i top 3, "Hvad har jeg lovet?" eller "Husk også", medmindre Claus spørger "hvad skal jeg huske?".
 

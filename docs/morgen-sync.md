@@ -78,7 +78,7 @@ For kendte personer med mail ind/ud eller møde: `update personer set sidste_kon
 Mangler en kendt kontakt et nummer (`personer.mobilnummer` eller `virksomheder.mobilnummer` er tom), og står der et i signaturen i en mail, personen selv har sendt, så skriv det ind i formatet `+45 12 34 56 78`. Foretræk mobil frem for omstilling. Overskriv aldrig et nummer, der allerede står der, og brug aldrig numre fra citeret tekst (fx Claus' eget +45 26 73 70 48).
 
 ### 5c. Kundemapper i Gmail og på Drive
-Alle virksomheder med et projekt i `lead`, `dialog`, `tilbud` eller `kunde` skal have en mappe begge steder. Netværk og private får ingen.
+Virksomheder med et projekt i `dialog`, `tilbud` eller `kunde` skal have en mappe begge steder. Et `lead` får først mapper, når der er en dialog i gang: der står en `kontaktperson` på virksomheden, eller der findes en `haendelse` (mail eller møde) med firmaet. Netværk og private får ingen. Rene mål-leads uden kontakt (fx listen over målvirksomheder) får ingen mapper.
 - **Gmail:** mangler `gmail_label`, så se om der findes en label `Kunder/<firmanavn>` (også uden "A/S", "ApS"). Findes den, så gem navnet. Ellers opret den med `create_label` og gem navnet.
   Findes den gemte label ikke længere (Claus har omdøbt den), så find den nye under `Kunder/` med samme firma og opdatér `gmail_label`.
 - **Drive:** mappen hedder `01 Tacet/Kunder` (id `1Abv3ZWyBYnSCruVRx1_w5Hlq5_krqeeK`). Mangler `drive_mappe_id`, så søg en undermappe med firmanavnet (`parentId = '<Kunder-id>'`). Findes den, så gem id'et. Ellers opret mappen (`mimeType application/vnd.google-apps.folder`) og gem id'et.
