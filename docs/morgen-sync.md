@@ -11,14 +11,15 @@ Supabase-projekt: `vdebqppfkvcqjytbuhny`. Claus' adresse: claus@tacet.dk. Datoer
 - **Ingen mailindhold i databasen.** Kun dato, retning, emne (maks. 80 tegn, uden "Re:"/"SV:"/"Fwd:") og modpartens adresse.
 - **Rør aldrig** `stage`, `vaerdi`, `naeste_skridt`, `noter` eller `opgaver` direkte. Ændringer af næste skridt og nye løfter bliver til `forslag`.
 - **Slet aldrig rækker.** Brug `on conflict (kilde) do nothing`, så en kørsel kan gentages uden dubletter.
-- De eneste direkte ændringer ud over `haendelser` og `forslag` er `personer.sidste_kontakt` (kun fremad i tid) og tomme mobilnumre (trin 5b).
+- De eneste direkte ændringer ud over `haendelser` og `forslag` er `personer.sidste_kontakt` (kun fremad i tid), tomme mobilnumre (trin 5b) og kundemapper (trin 5c).
+- **Flyt aldrig mails** og sæt aldrig labels på mails. Claus lægger selv mails i mapperne, når han har læst dem.
 
 ## Trin
 
 ### 1. Hent det kendte
 ```sql
 select id, navn, email, virksomhed_id, kategori from personer;
-select id, firmanavn, email, domaene, kontaktperson from virksomheder;
+select id, firmanavn, email, domaene, kontaktperson, gmail_label, drive_mappe_id from virksomheder;
 select id, virksomhed_id, stage, naeste_skridt, naeste_skridt_dato from projekter where stage <> 'tabt';
 select email from haendelser where person_id is null and email is not null;  -- kendte ukendte
 select kilde from forslag;                                                    -- hvad der allerede er spurgt om
@@ -30,7 +31,7 @@ Kendte domæner uden `virksomheder.domaene`: `ken.dk` = KEN. Søg `newer_than:2d
 For hver mail:
 - **Retning:** fra claus@tacet.dk = `mail_ud` (modparter: to + cc). Ellers `mail_ind` (modpart: from).
 - **Invitationer:** sender Claus en invitation til et arrangement (fx emne med "invitation", "middag", "arrangement", "AI middag på Vår"), så er typen `invitation`, og titlen `Inviteret: <arrangement> <dato>`. Det er sådan "jeg har inviteret Otto til 22/10" kommer med af sig selv. Svar på invitationen registreres som `mail_ind` med titlen `Svar på invitation: <arrangement>`.
-- **Gmail-labels først:** Claus sorterer kundemails under labelen `Kunder/<navn>`. Ligger en mail under en af dem, er det det sikreste match:
+- **Gmail-labels først:** Claus sorterer kundemails under labelen `Kunder/<navn>`. Ligger en mail under en af dem, er det det sikreste match. `virksomheder.gmail_label` siger, hvilken label der hører til hvilket firma. Ældre labels uden for systemet:
   `Kunder/KEN` → KEN · `Kunder/VS-Goup` → VSG · `Kunder/Tempur` → Dan Foam · `Kunder/Hauge` → HAUGE Stål · `Kunder/Sydtrafik` → Sydtrafik · `Kunder/SDU` → SDU · `Kunder/Svendborg Kommune` → Svendborg Kommune · `Kunder/FJ Industries` → FJ Industries · `Kunder/VID Firekill` → VID Firekill · `Kunder/Archidea` → Archidea · `Kunder/Agenda Advokater` → Agenda Advokater · `Kunder/Renas` → Renas · `Kunder/Kuhlmann` → Kuhlmann · `Kunder/Novoferm` → Novoferm · `Kunder/Sparrekassen Danmark` → Sparekassen Danmark · `Kunder/Aspia` (tidl. `Kunder/Regnskab og Administration`) → Aspia · `Kunder/Exodraft` → Exodraft · `Kunder/Ralf Astrup` → Cemara · `Kunder/DI` → DI Fyn · `Kunder/Aalborg Havn` → Aalborg Havn.
   Kommer der en ny `Kunder/…`-mappe, som ikke findes i systemet, så foreslå virksomheden som nyt lead via `forslag`. `AI partnere/*` (fx Velatir) er netværk, ikke kunder. `Privat/*` springes over.
 - **Match modparten** i denne rækkefølge: `personer.email`, `virksomheder.email`, derefter domæne mod `virksomheder.domaene`. Match aldrig på brede domæner (gmail.com, hotmail.com, outlook.com, live.dk, icloud.com, danskebank.dk). Se også matchingreglerne i `CLAUDE.md` (fx Tempur = Dan Foam, Steen/HAUGE).
@@ -75,6 +76,17 @@ For kendte personer med mail ind/ud eller møde: `update personer set sidste_kon
 
 ### 5b. Mobilnumre fra signaturer
 Mangler en kendt kontakt et nummer (`personer.mobilnummer` eller `virksomheder.mobilnummer` er tom), og står der et i signaturen i en mail, personen selv har sendt, så skriv det ind i formatet `+45 12 34 56 78`. Foretræk mobil frem for omstilling. Overskriv aldrig et nummer, der allerede står der, og brug aldrig numre fra citeret tekst (fx Claus' eget +45 26 73 70 48).
+
+### 5c. Kundemapper i Gmail og på Drive
+Alle virksomheder med et projekt i `lead`, `dialog`, `tilbud` eller `kunde` skal have en mappe begge steder. Netværk og private får ingen.
+- **Gmail:** mangler `gmail_label`, så se om der findes en label `Kunder/<firmanavn>` (også uden "A/S", "ApS"). Findes den, så gem navnet. Ellers opret den med `create_label` og gem navnet.
+  Findes den gemte label ikke længere (Claus har omdøbt den), så find den nye under `Kunder/` med samme firma og opdatér `gmail_label`.
+- **Drive:** mappen hedder `01 Tacet/Kunder` (id `1Abv3ZWyBYnSCruVRx1_w5Hlq5_krqeeK`). Mangler `drive_mappe_id`, så søg en undermappe med firmanavnet (`parentId = '<Kunder-id>'`). Findes den, så gem id'et. Ellers opret mappen (`mimeType application/vnd.google-apps.folder`) og gem id'et.
+- Brug firmanavnet uden "A/S" og "ApS" som mappenavn. Opret aldrig en mappe to gange, og slet eller omdøb aldrig mapper.
+```sql
+update virksomheder set gmail_label = 'Kunder/Lundberg Tech', drive_mappe_id = '<id>' where id = '<virksomhed-id>';
+```
+Nævn nye mapper i opsummeringen.
 
 ### 6. Næste skridt og løfter → forslag
 Kun når det er tydeligt:
