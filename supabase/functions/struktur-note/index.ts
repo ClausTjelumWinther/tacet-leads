@@ -24,7 +24,7 @@ const tool = {
   input_schema: {
     type: "object",
     properties: {
-      maal_type: { type: "string", enum: ["person", "projekt", "ny_person", "mig_selv"], description: "Hvad noten skal gemmes på. mig_selv = noget Claus selv skal huske, uden en person eller kunde." },
+      maal_type: { type: "string", enum: ["person", "projekt", "ny_person", "mig_selv", "nyt_lead"], description: "Hvad noten skal gemmes på. mig_selv = noget Claus selv skal huske, uden en person eller kunde. nyt_lead = et firma, der ikke er på listen, og som kan blive kunde." },
       maal_id: { type: "string", description: "id fra listen. Udelades ved ny_person." },
       ny_person_navn: { type: "string", description: "Fulde navn, kun ved ny_person." },
       note: { type: "string", description: "Kort og præcis note på dansk i jeg-form, uden dato. Fjern fyldord, gentagelser og talesprog, men bevar ALLE konkrete detaljer (navne, familie, interesser, tal, aftaler)." },
@@ -40,9 +40,21 @@ const tool = {
           required: ["tekst", "forfald"],
         },
       },
+      nyt_lead: {
+        type: "object",
+        description: "Kun ved nyt_lead. Udfyld kun det, Claus faktisk siger. Opfind aldrig mail eller telefonnummer.",
+        properties: {
+          firmanavn: { type: "string" },
+          kontaktperson: { type: "string", description: "Fulde navn på den, Claus talte med." },
+          email: { type: "string" },
+          mobil: { type: "string" },
+          produkt: { type: "string", description: "Hvad det handler om i få ord, fx 'AI i kundeservice'." },
+        },
+        required: ["firmanavn"],
+      },
       naeste_skridt: {
         type: "object",
-        description: "Kun hvis maal_type er projekt og noten tydeligt peger på et nyt næste skridt.",
+        description: "Ved projekt: kun hvis noten tydeligt peger på et nyt næste skridt. Ved nyt_lead: altid, med dit bedste bud på et konkret træk og en dato (standard om 2 dage).",
         properties: { tekst: { type: "string" }, dato: { type: "string", description: "YYYY-MM-DD" } },
         required: ["tekst", "dato"],
       },
@@ -102,6 +114,7 @@ Vælg målet for noten:
 - Handler den om et firma eller en aftale uden en person på listen, så vælg projektet.
 - Findes personen ikke, så brug ny_person med det fulde navn, Claus nævner.
 - Er du i tvivl mellem flere, så sæt sikker=false og vælg det bedste bud.
+- Taler Claus om et FIRMA, der ikke er på listen, som en mulig kunde (de vil høre om AI, der er en mulig opgave, "nyt lead"), så brug nyt_lead. Er det bare en privat bekendt uden et firma, så ny_person.
 - Er det noget, Claus bare selv skal huske, og ikke et løfte til en bestemt person eller kunde ("jeg skal huske at købe en Sonos-højttaler", "tal med renseriet"), så brug mig_selv. Læg hver ting i opgaver som en kort, handlingsrettet linje, og lad note være en kort samlet tekst. Et firma som "renseriet" eller "Sonos" er ikke en kunde.
 
 Stavning: Noten er ofte indtalt, og talegenkendelsen hører navne forkert. "Tacet" er Claus' eget firma (fejlhøres fx som "tasset", "taset", "tacit"). "Velatir" er en samarbejdspartner, der sælger software til AI-governance (fejlhøres fx som "vela tir", "velatier", "fela tir"). "Puls" er Claus' leadsystem. Stav altid disse og navnene på listen nedenfor korrekt.
@@ -159,6 +172,9 @@ ${[...personer, ...projekter].join("\n")}`;
     // Tjek at id'et faktisk findes, og find et læsbart navn til appen.
     if (fast) {
       Object.assign(forslag, { maal_type: fast.type, maal_id: fast.id, maal_navn: fast.navn, sikker: true });
+    } else if (forslag.maal_type === "nyt_lead") {
+      forslag.nyt_lead ??= { firmanavn: "" };
+      forslag.maal_navn = forslag.nyt_lead.firmanavn; forslag.sikker = !!forslag.nyt_lead.firmanavn;
     } else if (forslag.maal_type === "mig_selv") {
       forslag.maal_navn = "Til mig selv"; forslag.sikker = true;
     } else if (forslag.maal_type !== "ny_person") {

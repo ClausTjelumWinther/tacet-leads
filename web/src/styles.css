@@ -268,3 +268,20 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .mine-add .date-btn input[type="date"]{position:absolute;inset:auto 0 0 auto;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .mine-add .date-chip{border:0;background:var(--accent-soft);color:var(--accent);font-family:var(--f-mono);font-size:12px;padding:3px 8px;border-radius:999px;white-space:nowrap}
 .mine-add .add-btn{padding:7px 12px;border-radius:8px}
+
+/* Nyt lead: korte felter i to kolonner på desktop, én kolonne på mobil.
+   Påkrævet-mærket er diskret, så formularen ikke føles som en blanket. */
+.lead-fields{display:flex;flex-direction:column;gap:6px}
+.lead-fields label{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.lead-fields .req{text-transform:none;letter-spacing:0;color:var(--accent);font-size:11px;margin-left:4px}
+.lead-fields input{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 12px;font:inherit;font-size:16px;color:var(--ink)}
+.lead-fields input:focus{border-color:var(--accent);outline:none}
+.lf-two{display:grid;grid-template-columns:1fr;gap:6px}
+.lf-two > div{display:flex;flex-direction:column;gap:6px}
+@media (min-width:360px){ .lf-two{grid-template-columns:1fr 1fr;gap:10px} }
+.lf-next{display:flex;gap:8px;flex-wrap:wrap}
+.lf-next input:first-child{flex:1 1 220px}
+.lf-next input[type="date"]{flex:0 0 auto;width:auto}
+.row.new-lead .who{color:var(--accent);font-weight:500}
+.pill.lead{border-color:var(--accent);color:var(--accent)}
+.linkbtn.back{align-self:flex-start;padding:0;margin-top:-6px}

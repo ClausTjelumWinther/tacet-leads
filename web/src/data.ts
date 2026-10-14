@@ -184,7 +184,9 @@ export async function createPerson(navn: string, note: string): Promise<string> 
 // ---------- Mikrofonen: Claude sorterer, du godkender ----------
 
 export interface Forslag {
-  maal_type: "person" | "projekt" | "ny_person" | "mig_selv";
+  maal_type: "person" | "projekt" | "ny_person" | "mig_selv" | "nyt_lead";
+  /** Kun ved nyt_lead: det, Claude fandt i teksten. Du retter det i appen før Gem. */
+  nyt_lead?: { firmanavn: string; kontaktperson?: string; email?: string; mobil?: string; produkt?: string };
   maal_id?: string;
   maal_navn?: string;
   ny_person_navn?: string;
@@ -224,6 +226,51 @@ export async function createMine(tekst: string, forfald: string | null = null): 
 export async function completeStep(id: string, gammelt: string | null, tekst: string, dato: string): Promise<void> {
   if (gammelt?.trim()) await addNote("projekt", id, `Klaret: ${gammelt.trim()}`);
   await setNextStep(id, tekst, dato);
+}
+
+/** Det, der skal til for at oprette et nyt lead. Firma, næste skridt og dato er påkrævet. */
+export interface NytLead {
+  firmanavn: string;
+  kontaktperson?: string;
+  email?: string;
+  mobil?: string;
+  produkt?: string;          // hvad det handler om, fx "AI sparring". Tom = "AI"
+  naeste_skridt: string;
+  naeste_skridt_dato: string;
+  note?: string;
+}
+
+/** Opretter firma + projekt (stage lead). Er der en kontaktperson, oprettes hun også under Personer.
+ *  Returnerer projektets id, så noter og løfter kan hænges på det. */
+export async function createLead(l: NytLead): Promise<string> {
+  const ren = (x?: string) => (x ?? "").trim() || null;
+  const email = ren(l.email);
+  // Domænet bruges af morgen-gennemgangen til at finde mails fra firmaet.
+  // Brede domæner (gmail.com o.l.) giver ingen mening at matche på.
+  const dom = email?.split("@")[1]?.toLowerCase() ?? null;
+  const bred = !dom || /^(gmail|hotmail|outlook|live|icloud|yahoo|me|mail)\./.test(dom);
+
+  const v = await supabase.from("virksomheder").insert({
+    firmanavn: l.firmanavn.trim(), kontaktperson: ren(l.kontaktperson), email, mobilnummer: ren(l.mobil),
+    domaene: bred ? null : dom,
+  }).select("id").single();
+  if (v.error) throw v.error;
+
+  const p = await supabase.from("projekter").insert({
+    virksomhed_id: v.data.id, produkt: ren(l.produkt) ?? "AI", stage: "lead",
+    naeste_skridt: l.naeste_skridt.trim(), naeste_skridt_dato: l.naeste_skridt_dato,
+    noter: ren(l.note) ? `${stamp()}: ${l.note!.trim()}` : null,
+  }).select("id").single();
+  if (p.error) throw p.error;
+
+  if (ren(l.kontaktperson)) {
+    const pe = await supabase.from("personer").insert({
+      navn: l.kontaktperson!.trim(), email, mobilnummer: ren(l.mobil), kategori: "kunde",
+      virksomhed_id: v.data.id, sidste_kontakt: today(),
+    });
+    if (pe.error) throw pe.error;
+  }
+  return p.data.id as string;
 }
 
 export async function setNextStep(id: string, tekst: string, dato: string): Promise<void> {

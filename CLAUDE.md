@@ -66,6 +66,8 @@ Læs projektet i Supabase, de seneste mails med kunden og kommende/afholdte mød
 - Indeholder noten et næste skridt, så foreslå at opdatere `naeste_skridt`. Vent på ja.
 - Findes kunden ikke, så tilbyd at oprette virksomhed + projekt som `lead`.
 
+**Nyt lead** oprettes også i appen: "+ Note" → søg firmaet → "Opret … som nyt lead", eller via mikrofonen, hvor Claude foreslår `nyt_lead`. Begge veje kræver firma, næste skridt og dato, og opretter virksomhed (med `domaene` fra mailen, undtagen brede domæner), projekt (`stage = 'lead'`, `produkt` standard "AI") og kontaktpersonen under `personer` (kategori `kunde`).
+
 ### 2b. Efter et møde: "Jeg har talt med X …"
 Claus indtaler typisk lige efter et møde, i løs tale. Gør sådan:
 1. Find personen i `personer` (navn, mail). Findes de ikke, så opret dem. Er de kontakt på en virksomhed i systemet, så sæt `virksomhed_id` og kategori derefter. Ellers er standarden `privat`.

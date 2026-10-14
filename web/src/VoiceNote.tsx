@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  addNote, createMine, createPerson, createTask, errorText, projectName, setNextStep, structure,
-  type Data, type Forslag,
+  addNote, createLead, createMine, createPerson, createTask, errorText, projectName, setNextStep, structure,
+  type Data, type Forslag, type NytLead,
 } from "./data";
+import LeadFields, { leadMangler, tomtLead } from "./LeadFields";
 import { short } from "./dates";
 import { retNavne } from "./ordbog";
 
@@ -13,7 +14,8 @@ import { retNavne } from "./ordbog";
 
 type Step = "lyt" | "sorterer" | "forslag" | "gemmer";
 type Target = { type: "person" | "projekt"; id: string; navn: string } | { type: "ny"; navn: string }
-  | { type: "mig"; navn: string };   // "mig" = huskepunkt til dig selv (køb Sonos, tal med renseriet)
+  | { type: "mig"; navn: string }    // "mig" = huskepunkt til dig selv (køb Sonos, tal med renseriet)
+  | { type: "lead"; navn: string };  // "lead" = nyt firma i pipelinen; felterne står i `lead`
 const MIG: Target = { type: "mig", navn: "Til mig selv" };
 
 // ---------- Kladde: en indtalt note må aldrig forsvinde ----------
@@ -24,6 +26,7 @@ const KLADDE = "puls.indtalt-kladde";
 interface Kladde {
   text: string; forslag: Forslag | null; target: Target | null; note: string;
   tasks: { tekst: string; forfald: string; med: boolean }[]; useNext: boolean; tid: number;
+  lead?: NytLead;
 }
 function readDraft(): Kladde | null {
   try { const s = localStorage.getItem(KLADDE); return s ? JSON.parse(s) as Kladde : null; } catch { return null; }
@@ -52,6 +55,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
   const [tasks, setTasks] = useState<{ tekst: string; forfald: string; med: boolean }[]>(draft?.tasks ?? []);
   const [useNext, setUseNext] = useState(draft?.useNext ?? false);
   const [picking, setPicking] = useState(!!draft?.forslag && !draft.target);
+  const [lead, setLead] = useState<NytLead>(draft?.lead ?? tomtLead());
 
   // Gem kladden, hver gang noget ændrer sig. Tom tekst = ingen kladde.
   const savedRef = useRef(false);
@@ -59,8 +63,8 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
   useEffect(() => {
     if (savedRef.current) return;
     if (!text.trim() && !note.trim()) { writeDraft(null); return; }
-    writeDraft({ text, forslag, target, note, tasks, useNext, tid: tidRef.current });
-  }, [text, forslag, target, note, tasks, useNext]);
+    writeDraft({ text, forslag, target, note, tasks, useNext, tid: tidRef.current, lead });
+  }, [text, forslag, target, note, tasks, useNext, lead]);
 
   function discard() { savedRef.current = true; writeDraft(null); stop(); onClose(); }
 
@@ -137,9 +141,16 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
       setNote(f.note);
       setTasks((f.opgaver ?? []).map(o => ({ ...o, med: true })));
       setUseNext(false); // næste skridt ændres kun, hvis du selv sætter flueben
+      if (f.maal_type === "nyt_lead") {
+        // Claude har fundet et nyt firma. Udfyld felterne; næste skridt flyttes over i leadet.
+        const nl = f.nyt_lead ?? { firmanavn: "" };
+        setLead({ ...tomtLead(nl.firmanavn), ...nl,
+          naeste_skridt: f.naeste_skridt?.tekst ?? "", naeste_skridt_dato: f.naeste_skridt?.dato || tomtLead().naeste_skridt_dato });
+      }
       setTarget(f.maal_type === "mig_selv" ? MIG
+        : f.maal_type === "nyt_lead" ? { type: "lead", navn: f.nyt_lead?.firmanavn ?? "" }
         : f.maal_type === "ny_person" ? { type: "ny", navn: f.ny_person_navn ?? "" }
-        : { type: f.maal_type, id: f.maal_id!, navn: f.maal_navn ?? "" });
+        : { type: f.maal_type as "person" | "projekt", id: f.maal_id!, navn: f.maal_navn ?? "" });
       setPicking(f.maal_type !== "mig_selv" && (!f.sikker || (f.maal_type === "ny_person" && !f.ny_person_navn)));
       setStep("forslag");
     } catch (e) {
@@ -166,6 +177,15 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
         const valgt = tasks.filter(t => t.med && t.tekst.trim());
         if (valgt.length) for (const t of valgt) await createMine(t.tekst.trim(), t.forfald || null);
         else await createMine(note.trim());
+        savedRef.current = true; writeDraft(null); await onSaved(); onClose();
+        return;
+      }
+      if (target.type === "lead") {
+        const mangler = leadMangler(lead);
+        if (mangler) { setError(mangler); setStep("forslag"); return; }
+        // Firma + projekt + kontaktperson oprettes; noten og løfterne hænges på projektet.
+        const projektId = await createLead({ ...lead, note });
+        for (const t of tasks.filter(t => t.med && t.tekst.trim())) await createTask(t.tekst.trim(), t.forfald, { projekt_id: projektId });
         savedRef.current = true; writeDraft(null); await onSaved(); onClose();
         return;
       }
@@ -233,14 +253,20 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
             <div className="sec">Gemmes på</div>
             {!picking && target ? (
               <div className="chosen">
-                <span><b>{target.type === "ny" ? `Ny kontakt: ${target.navn}` : target.navn}</b>
+                <span><b>{target.type === "ny" ? `Ny kontakt: ${target.navn}` : target.type === "lead" ? "Nyt lead" : target.navn}</b>
                   {(target.type === "person" || target.type === "projekt") && <span className="muted"> · {target.type === "person" ? "Person" : "Projekt"}</span>}</span>
                 <button type="button" className="linkbtn" onClick={() => setPicking(true)}>Skift</button>
               </div>
             ) : (
               <Picker data={data} initial={target?.navn ?? forslag.ny_person_navn ?? ""} hint={forslag.sikker ? "" : forslag.begrundelse}
-                onPick={t => { setTarget(t); setPicking(false); setError(""); }} />
+                onPick={t => {
+                  // Vælger du "nyt lead", fyldes firmanavnet og evt. Claudes næste skridt ind.
+                  if (t.type === "lead") setLead(l => ({ ...l, firmanavn: t.navn, naeste_skridt: l.naeste_skridt || forslag.naeste_skridt?.tekst || "", naeste_skridt_dato: forslag.naeste_skridt?.dato || l.naeste_skridt_dato }));
+                  setTarget(t); setPicking(false); setError("");
+                }} />
             )}
+
+            {target?.type === "lead" && !picking && <LeadFields idPrefix="vl" value={lead} onChange={setLead} />}
 
             <label className="sec" htmlFor="vn-note">Noten</label>
             <textarea id="vn-note" value={note} onChange={e => setNote(e.target.value)} />
@@ -307,6 +333,12 @@ function Picker({ data, initial, hint, onPick }: { data: Data; initial: string; 
             <span className="side"><span className="pill">{h.type === "person" ? "Person" : "Projekt"}</span></span>
           </button>
         ))}
+        {q.trim().length > 1 && (
+          <button type="button" className="row new-lead" onClick={() => onPick({ type: "lead", navn: q.trim() })}>
+            <span className="who">Opret “{q.trim()}” som nyt lead</span>
+            <span className="side"><span className="pill lead">Lead</span></span>
+          </button>
+        )}
         <button type="button" className="row" onClick={() => onPick(MIG)}>
           <span className="who">Til mig selv</span>
           <span className="side"><span className="pill">Husk</span></span>

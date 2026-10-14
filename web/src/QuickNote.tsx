@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addNote, createPerson, projectName, type Data } from "./data";
+import { addNote, createLead, createPerson, errorText, projectName, type Data, type NytLead } from "./data";
+import LeadFields, { leadMangler, tomtLead } from "./LeadFields";
+import { DictateButton } from "./Dictate";
 import NoteComposer, { saveTasks, type Task } from "./NoteComposer";
 
-type Target = { kind: "person" | "projekt"; id: string; label: string } | { kind: "ny"; label: string };
+type Target = { kind: "person" | "projekt"; id: string; label: string } | { kind: "ny"; label: string }
+  | { kind: "lead"; label: string };   // nyt firma i pipelinen (stage lead)
 
 // "+ Note": det hurtige felt til lige efter et møde.
 // 1) Skriv eller indtal hvem det handler om. 2) Vælg. 3) Indtal noten. 4) Gem.
@@ -11,6 +14,25 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
   const [target, setTarget] = useState<Target | null>(null);
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
   const whoRef = useRef<HTMLInputElement>(null);
+  const [lead, setLead] = useState<NytLead>(tomtLead());
+  const [leadNote, setLeadNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Nyt lead: firma, næste skridt og dato skal være udfyldt. Noten er valgfri.
+  async function saveLead() {
+    const mangler = leadMangler(lead);
+    if (mangler) { setMsg({ text: mangler, err: true }); return; }
+    setBusy(true); setMsg(null);
+    try {
+      await createLead({ ...lead, note: leadNote });
+      await onSaved();
+      onClose();
+    } catch (e) {
+      setMsg({ text: errorText(e), err: true });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => { whoRef.current?.focus(); }, []);
   useEffect(() => {
@@ -37,7 +59,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
   }, [who, data]);
 
   async function save(text: string, tasks: Task[]) {
-    if (!target) { setMsg({ text: "Vælg hvem noten handler om.", err: true }); return; }
+    if (!target || target.kind === "lead") { setMsg({ text: "Vælg hvem noten handler om.", err: true }); return; }
     setMsg(null);
     if (target.kind === "ny") {
       const id = await createPerson(target.label, text);
@@ -54,7 +76,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
     <div className="sheet-bg" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="qn-title" onClick={e => e.stopPropagation()}>
         <div className="sheet-head">
-          <h2 id="qn-title">Hurtig note</h2>
+          <h2 id="qn-title">{target?.kind === "lead" ? "Nyt lead" : "Hurtig note"}</h2>
           <button type="button" className="linkbtn" onClick={onClose}>Luk</button>
         </div>
 
@@ -76,6 +98,24 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
                   <span className="who">Opret “{who.trim()}” som ny privat kontakt</span>
                 </button>
               )}
+              {/* Nyt firma til pipelinen. Står altid nederst, også uden søgning. */}
+              <button type="button" className="row new-lead" onClick={() => { setLead(tomtLead(who.trim())); setTarget({ kind: "lead", label: who.trim() }); }}>
+                <span className="who">{who.trim().length > 1 ? <>Opret “{who.trim()}” som nyt lead</> : "Opret nyt lead"}</span>
+                <span className="side"><span className="pill lead">Lead</span></span>
+              </button>
+            </div>
+          </>
+        ) : target.kind === "lead" ? (
+          <>
+            <button type="button" className="linkbtn back" onClick={() => { setTarget(null); setMsg(null); }}>← Tilbage til søgning</button>
+            <LeadFields idPrefix="ql" value={lead} onChange={setLead} />
+            <label className="sec" htmlFor="ql-note">Note <span className="muted small">valgfri</span></label>
+            <div className="composer">
+              <textarea id="ql-note" value={leadNote} onChange={e => setLeadNote(e.target.value)} placeholder="Hvordan mødte I hinanden, og hvad talte I om?" />
+              <div className="acts">
+                <DictateButton value={leadNote} onChange={setLeadNote} />
+                <button type="button" className="btn primary" onClick={saveLead} disabled={busy}>{busy ? "Opretter…" : "Opret lead"}</button>
+              </div>
             </div>
           </>
         ) : (
@@ -86,7 +126,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
             </div>
             <label className="sec" htmlFor="qn-text">Hvad talte I om?</label>
             <NoteComposer id="qn-text" autoFocus placeholder="" saveLabel="Gem note"
-              target={target.kind === "ny" ? null : { type: target.kind, id: target.id }} onSave={save} />
+              target={target.kind === "person" || target.kind === "projekt" ? { type: target.kind, id: target.id } : null} onSave={save} />
           </>
         )}
         {msg && <p className={msg.err ? "error" : "muted"}>{msg.text}</p>}
