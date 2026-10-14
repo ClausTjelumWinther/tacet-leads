@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addNote, createLead, createPerson, errorText, projectName, type Data, type NytLead } from "./data";
-import LeadFields, { leadMangler, tomtLead } from "./LeadFields";
+import { addNote, createLead, createNetvaerk, createPerson, errorText, projectName, type Data, type NyNetvaerk, type NytLead } from "./data";
+import LeadFields, { NetvaerkFields, leadMangler, netvaerkMangler, tomtLead, tomtNetvaerk } from "./LeadFields";
 import { DictateButton } from "./Dictate";
 import NoteComposer, { saveTasks, type Task } from "./NoteComposer";
 
 type Target = { kind: "person" | "projekt"; id: string; label: string } | { kind: "ny"; label: string }
-  | { kind: "lead"; label: string };   // nyt firma i pipelinen (stage lead)
+  | { kind: "lead"; label: string }    // nyt firma i pipelinen (stage lead)
+  | { kind: "net"; label: string };    // ny netværksperson med kort under Netværk
 
 // "+ Note": det hurtige felt til lige efter et møde.
 // 1) Skriv eller indtal hvem det handler om. 2) Vælg. 3) Indtal noten. 4) Gem.
@@ -17,6 +18,23 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
   const [lead, setLead] = useState<NytLead>(tomtLead());
   const [leadNote, setLeadNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [net, setNet] = useState<NyNetvaerk>(tomtNetvaerk());
+
+  // Ny netværksperson: navn, næste skridt og dato skal være udfyldt.
+  async function saveNet() {
+    const mangler = netvaerkMangler(net);
+    if (mangler) { setMsg({ text: mangler, err: true }); return; }
+    setBusy(true); setMsg(null);
+    try {
+      await createNetvaerk({ ...net, note: leadNote });
+      await onSaved();
+      onClose();
+    } catch (e) {
+      setMsg({ text: errorText(e), err: true });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Nyt lead: firma, næste skridt og dato skal være udfyldt. Noten er valgfri.
   async function saveLead() {
@@ -59,7 +77,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
   }, [who, data]);
 
   async function save(text: string, tasks: Task[]) {
-    if (!target || target.kind === "lead") { setMsg({ text: "Vælg hvem noten handler om.", err: true }); return; }
+    if (!target || target.kind === "lead" || target.kind === "net") { setMsg({ text: "Vælg hvem noten handler om.", err: true }); return; }
     setMsg(null);
     if (target.kind === "ny") {
       const id = await createPerson(target.label, text);
@@ -76,7 +94,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
     <div className="sheet-bg" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="qn-title" onClick={e => e.stopPropagation()}>
         <div className="sheet-head">
-          <h2 id="qn-title">{target?.kind === "lead" ? "Nyt lead" : "Hurtig note"}</h2>
+          <h2 id="qn-title">{target?.kind === "lead" ? "Nyt lead" : target?.kind === "net" ? "Ny netværksperson" : "Hurtig note"}</h2>
           <button type="button" className="linkbtn" onClick={onClose}>Luk</button>
         </div>
 
@@ -98,11 +116,29 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
                   <span className="who">Opret “{who.trim()}” som ny privat kontakt</span>
                 </button>
               )}
+              {/* Ny netværksperson: en, der kan skaffe dig kunder. */}
+              <button type="button" className="row new-lead" onClick={() => { setNet(tomtNetvaerk(who.trim())); setLeadNote(""); setTarget({ kind: "net", label: who.trim() }); }}>
+                <span className="who">{who.trim().length > 1 ? <>Opret “{who.trim()}” som netværksperson</> : "Opret netværksperson"}</span>
+                <span className="side"><span className="pill lead">Netværk</span></span>
+              </button>
               {/* Nyt firma til pipelinen. Står altid nederst, også uden søgning. */}
-              <button type="button" className="row new-lead" onClick={() => { setLead(tomtLead(who.trim())); setTarget({ kind: "lead", label: who.trim() }); }}>
+              <button type="button" className="row new-lead" onClick={() => { setLead(tomtLead(who.trim())); setLeadNote(""); setTarget({ kind: "lead", label: who.trim() }); }}>
                 <span className="who">{who.trim().length > 1 ? <>Opret “{who.trim()}” som nyt lead</> : "Opret nyt lead"}</span>
                 <span className="side"><span className="pill lead">Lead</span></span>
               </button>
+            </div>
+          </>
+        ) : target.kind === "net" ? (
+          <>
+            <button type="button" className="linkbtn back" onClick={() => { setTarget(null); setMsg(null); }}>← Tilbage til søgning</button>
+            <NetvaerkFields idPrefix="qnw" value={net} onChange={setNet} />
+            <label className="sec" htmlFor="qnw-note">Note <span className="muted small">valgfri</span></label>
+            <div className="composer">
+              <textarea id="qnw-note" value={leadNote} onChange={e => setLeadNote(e.target.value)} placeholder="Hvem er personen, hvordan kender I hinanden, og hvad talte I om?" />
+              <div className="acts">
+                <DictateButton value={leadNote} onChange={setLeadNote} />
+                <button type="button" className="btn primary" onClick={saveNet} disabled={busy}>{busy ? "Opretter…" : "Opret netværksperson"}</button>
+              </div>
             </div>
           </>
         ) : target.kind === "lead" ? (

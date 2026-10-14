@@ -273,6 +273,46 @@ export async function createLead(l: NytLead): Promise<string> {
   return p.data.id as string;
 }
 
+/** En netværksperson: en, der kan skaffe dig kunder, men ikke selv bliver kunde. */
+export interface NyNetvaerk {
+  navn: string;
+  firma?: string;            // hvor personen arbejder. Tom = kortet hedder personens navn
+  email?: string;
+  mobil?: string;
+  naeste_skridt: string;
+  naeste_skridt_dato: string;
+  note?: string;
+}
+
+/** Opretter personen (kategori netværk) og et kort under Netværk med næste skridt.
+ *  Kortet hænger på en virksomhed, ligesom leads, så det kan vises sammen med de andre. */
+export async function createNetvaerk(n: NyNetvaerk): Promise<void> {
+  const ren = (x?: string) => (x ?? "").trim() || null;
+  const email = ren(n.email);
+  const firma = ren(n.firma);
+  // Domænet giver kun mening, når der er et firma og en firmamail (ikke gmail.com o.l.).
+  const dom = email?.split("@")[1]?.toLowerCase() ?? null;
+  const bred = !firma || !dom || /^(gmail|hotmail|outlook|live|icloud|yahoo|me|mail)\./.test(dom);
+
+  const v = await supabase.from("virksomheder").insert({
+    firmanavn: firma ?? n.navn.trim(), kontaktperson: n.navn.trim(), email, mobilnummer: ren(n.mobil),
+    domaene: bred ? null : dom,
+  }).select("id").single();
+  if (v.error) throw v.error;
+
+  const p = await supabase.from("projekter").insert({
+    virksomhed_id: v.data.id, produkt: "Netværk", stage: "netvaerk",
+    naeste_skridt: n.naeste_skridt.trim(), naeste_skridt_dato: n.naeste_skridt_dato,
+  });
+  if (p.error) throw p.error;
+
+  const pe = await supabase.from("personer").insert({
+    navn: n.navn.trim(), email, mobilnummer: ren(n.mobil), kategori: "netvaerk", virksomhed_id: v.data.id,
+    noter: ren(n.note) ? `${stamp()}: ${n.note!.trim()}` : null, sidste_kontakt: today(),
+  });
+  if (pe.error) throw pe.error;
+}
+
 export async function setNextStep(id: string, tekst: string, dato: string): Promise<void> {
   const { error } = await supabase.from("projekter").update({ naeste_skridt: tekst, naeste_skridt_dato: dato }).eq("id", id);
   if (error) throw error;
