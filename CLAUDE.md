@@ -45,6 +45,7 @@ Match i denne rækkefølge, og spørg kun hvis der stadig er tvivl:
 
 Kendte navneforskelle:
 - **Tempur / Tempur Sealy** står som **Dan Foam**. Kontakt: Kasper Lundgaard Sørensen.
+- **Regnskab og Administration** hedder nu **Aspia** (domæne aspia.dk). Kontakt: Tina Berg Svendsen.
 - **HAUGE Stål A/S:** kontakten er Steen Møller Hansen, bestyrelsesformand i HAUGE og samtidig bankdirektør i Danske Bank. Hans mail er @danskebank.dk, så HAUGE har bevidst intet `domaene`. Match kun på hans egen adresse (smha@danskebank.dk), aldrig på hele danskebank.dk.
 
 Generel regel: når kontaktens mail tilhører en anden organisation end kunden (bestyrelsesformand, rådgiver, privat mail), lad `domaene` være tom og match på den konkrete mailadresse.
