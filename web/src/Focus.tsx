@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setGenkoeb, setVelatir, type Data } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setVelatir, type Data, type Faktura, type Projekt } from "./data";
 import NextStep from "./NextStep";
 import { kundeStatus } from "./Kunder";
 import { Activity, Contact, Group, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
@@ -99,6 +99,10 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           </div>
           <aside className="fside">
             <section className="panel"><div className="sec">Kontakt</div><Contact email={p.firma?.email ?? null} phone={p.firma?.mobilnummer ?? null} /></section>
+            {/* Fakturering: kun hvor der er noget at fakturere (kunder og tilbud). */}
+            {(p.stage === "kunde" || p.stage === "tilbud") && p.virksomhed_id && (
+              <Fakturering key={p.id} p={p} onSave={f => run(() => setFaktura(p.virksomhed_id!, f), "Faktureringsoplysninger er gemt")} />
+            )}
             <section className="panel"><div className="sec">Små løfter</div>
               <Promises items={loefterP} onDone={id => run(() => completeTask(id), "Løftet er klaret")} /></section>
             <section className="panel"><div className="sec">Mails og møder</div><Activity items={akt} /></section>
@@ -187,6 +191,64 @@ function Genkoeb({ genkoeb, sidste, naeste, onSave }: {
           onClick={async () => { setBusy(true); try { await onSave(tekst, dato || null); } finally { setBusy(false); } }}>
           {busy ? "Gemmer…" : "Gem"}</button>
       </div>
+    </section>
+  );
+}
+
+/** Fakturering: juridisk navn, CVR og adresse. Kan kopieres samlet og rettes direkte på kortet. */
+function Fakturering({ p, onSave }: { p: Projekt; onSave: (f: Faktura) => Promise<void> }) {
+  const f = p.firma;
+  const start: Faktura = {
+    fakturanavn: f?.fakturanavn ?? f?.firmanavn?.trim() ?? "", cvr: f?.cvr ?? "",
+    adresse: f?.adresse ?? "", postnummer: (f?.postnummer ?? "").trim(), by: f?.by ?? "",
+  };
+  const [ret, setRet] = useState(false);
+  const [v, setV] = useState<Faktura>(start);
+  const [busy, setBusy] = useState(false);
+  const [kopieret, setKopieret] = useState(false);
+
+  const harData = !!(f?.cvr || f?.adresse);
+  // Teksten, der kopieres: som den skal stå på fakturaen.
+  const linjer = [start.fakturanavn, start.cvr && `CVR ${start.cvr}`, start.adresse, [start.postnummer, start.by].filter(Boolean).join(" ")].filter(Boolean) as string[];
+  const set = (k: keyof Faktura) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
+
+  return (
+    <section className="panel faktura">
+      <div className="sec">Fakturering</div>
+      {!ret ? (
+        <>
+          {harData ? (
+            <address className="faktura-adr">{linjer.map((l, i) => <span key={i}>{l}</span>)}</address>
+          ) : <div className="empty tight">Ingen CVR eller adresse endnu.</div>}
+          <div className="acts">
+            {harData && (
+              <button type="button" className="linkbtn" onClick={async () => {
+                try { await navigator.clipboard.writeText(linjer.join("\n")); setKopieret(true); setTimeout(() => setKopieret(false), 1500); } catch { /* ignorer */ }
+              }}>{kopieret ? "Kopieret" : "Kopiér alt"}</button>
+            )}
+            <button type="button" className="linkbtn" onClick={() => { setV(start); setRet(true); }}>{harData ? "Ret" : "Tilføj"}</button>
+          </div>
+        </>
+      ) : (
+        <div className="lead-fields">
+          <label htmlFor="fk-navn">Navn på faktura</label>
+          <input id="fk-navn" value={v.fakturanavn} onChange={set("fakturanavn")} />
+          <label htmlFor="fk-cvr">CVR</label>
+          <input id="fk-cvr" inputMode="numeric" value={v.cvr} onChange={set("cvr")} />
+          <label htmlFor="fk-adr">Adresse</label>
+          <input id="fk-adr" value={v.adresse} onChange={set("adresse")} />
+          <div className="lf-two">
+            <div><label htmlFor="fk-post">Postnr.</label><input id="fk-post" inputMode="numeric" value={v.postnummer} onChange={set("postnummer")} /></div>
+            <div><label htmlFor="fk-by">By</label><input id="fk-by" value={v.by} onChange={set("by")} /></div>
+          </div>
+          <div className="acts">
+            <button type="button" className="btn primary" disabled={busy}
+              onClick={async () => { setBusy(true); try { await onSave(v); setRet(false); } finally { setBusy(false); } }}>
+              {busy ? "Gemmer…" : "Gem"}</button>
+            <button type="button" className="linkbtn" onClick={() => setRet(false)}>Fortryd</button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

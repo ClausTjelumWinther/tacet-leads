@@ -18,7 +18,11 @@ export interface Projekt {
   dato: string | null;              // hvornår projektet blev solgt/startede
   genkoeb: string | null;           // næste oplagte salg hos en kunde
   sidste_leverance: string | null;  // hvornår vi sidst leverede
-  firma: { firmanavn: string; kontaktperson: string | null; email: string | null; mobilnummer: string | null; over20: boolean | null } | null;
+  firma: {
+    firmanavn: string; kontaktperson: string | null; email: string | null; mobilnummer: string | null; over20: boolean | null;
+    // Til fakturering. fakturanavn er det juridiske navn, hvis det er et andet end firmanavn (fx VSG).
+    fakturanavn: string | null; cvr: string | null; adresse: string | null; postnummer: string | null; by: string | null;
+  } | null;
 }
 
 export interface Person {
@@ -112,7 +116,7 @@ export async function loadAll(): Promise<Data> {
   const [p, pe, o, h, f, m, ml, ar, de, lo, op, mi] = await Promise.all([
     supabase.from("projekter").select(
       "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
-      "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20)"),
+      "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20, fakturanavn, cvr, adresse, postnummer, by)"),
     supabase.from("personer").select(
       "id, navn, kategori, virksomhed_id, email, mobilnummer, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
     supabase.from("opgaver").select(
@@ -377,6 +381,17 @@ export async function addOpslag(dato: string, tekst: string, url: string): Promi
 export async function setGenkoeb(id: string, genkoeb: string, sidste_leverance: string | null): Promise<void> {
   const { error } = await supabase.from("projekter")
     .update({ genkoeb: genkoeb.trim() || null, sidste_leverance: sidste_leverance || null }).eq("id", id);
+  if (error) throw error;
+}
+
+export interface Faktura { fakturanavn: string; cvr: string; adresse: string; postnummer: string; by: string }
+
+/** Gemmer faktureringsoplysningerne på virksomheden. Tomme felter gemmes som tomme. */
+export async function setFaktura(virksomhed_id: string, f: Faktura): Promise<void> {
+  const ren = (x: string) => x.trim() || null;
+  const { error } = await supabase.from("virksomheder").update({
+    fakturanavn: ren(f.fakturanavn), cvr: ren(f.cvr), adresse: ren(f.adresse), postnummer: ren(f.postnummer), by: ren(f.by),
+  }).eq("id", virksomhed_id);
   if (error) throw error;
 }
 

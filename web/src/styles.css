@@ -289,3 +289,7 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .dublet{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--ink);font-size:14px}
 .dublet b{color:var(--warn);font-weight:600}
 .dublet .linkbtn{padding:0;text-align:left}
+/* Fakturering på kundekortet */
+.faktura-adr{font-style:normal;display:flex;flex-direction:column;gap:2px;font-size:14px;line-height:1.45;user-select:text}
+.faktura-adr span:first-child{font-weight:500}
+.faktura .acts{display:flex;gap:12px;margin-top:6px}
