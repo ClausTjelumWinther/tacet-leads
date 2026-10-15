@@ -98,7 +98,17 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
             </section>
           </div>
           <aside className="fside">
-            <section className="panel"><div className="sec">Kontakt</div><Contact email={p.firma?.email ?? null} phone={p.firma?.mobilnummer ?? null} /></section>
+            <section className="panel"><div className="sec">Kontakt</div>
+              {p.firma?.kontaktperson && <div className="kp-navn">{p.firma.kontaktperson.trim()}</div>}
+              <Contact email={p.firma?.email ?? null} phone={p.firma?.mobilnummer ?? null} />
+              {/* Andre kontaktpersoner hos samme firma, med deres egen mail og telefon. */}
+              {people.filter(x => x.navn.trim() !== (p.firma?.kontaktperson ?? "").trim() && (x.email || x.mobilnummer)).map(x => (
+                <div key={x.id} className="kp-ekstra">
+                  <div className="kp-navn">{x.navn}</div>
+                  <Contact email={x.email} phone={x.mobilnummer} />
+                </div>
+              ))}
+            </section>
             {/* Fakturering: kun hvor der er noget at fakturere (kunder og tilbud). */}
             {(p.stage === "kunde" || p.stage === "tilbud") && p.virksomhed_id && (
               <Fakturering key={p.id} p={p} onSave={f => run(() => setFaktura(p.virksomhed_id!, f), "Faktureringsoplysninger er gemt")} />

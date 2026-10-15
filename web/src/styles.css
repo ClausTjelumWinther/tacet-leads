@@ -293,3 +293,6 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .faktura-adr{font-style:normal;display:flex;flex-direction:column;gap:2px;font-size:14px;line-height:1.45;user-select:text}
 .faktura-adr span:first-child{font-weight:500}
 .faktura .acts{display:flex;gap:12px;margin-top:6px}
+/* Flere kontaktpersoner i Kontakt-boksen */
+.kp-navn{font-weight:500;font-size:14px;margin-bottom:2px}
+.kp-ekstra{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
