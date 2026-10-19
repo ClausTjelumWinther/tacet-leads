@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setVelatir, type Data, type Faktura, type Projekt } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
 import NextStep from "./NextStep";
 import { kundeStatus } from "./Kunder";
 import { Activity, Contact, Group, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
@@ -47,6 +47,8 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
             {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}</span> : null}
             {boldenHosDig(akt) && <span className="ball">Bolden er hos dig</span>}
           </div>
+          {/* Status: ét tryk flytter projektet i pipelinen. */}
+          <StatusVaelger p={p} onVaelg={st => run(() => setStage(p, st), `Status er nu ${STAGES[st]}`)} />
           {/* Velatir: peger projektet på et Velatir-abonnement? Ét tryk slår det til eller fra. */}
           <label className="velatir-toggle">
             <input type="checkbox" checked={p.velatir}
@@ -260,5 +262,28 @@ function Fakturering({ p, onSave }: { p: Projekt; onSave: (f: Faktura) => Promis
         </div>
       )}
     </section>
+  );
+}
+
+// Rækkefølgen i vælgeren: salgsforløbet først, derefter netværk og tabt.
+const STATUSSER: Stage[] = ["lead", "dialog", "tilbud", "kunde", "netvaerk", "tabt"];
+
+/** Status som en række knapper. "Tabt" kræver et ekstra tryk, så man ikke kommer til det. */
+function StatusVaelger({ p, onVaelg }: { p: Projekt; onVaelg: (s: Stage) => void }) {
+  const [bekraeft, setBekraeft] = useState(false);
+  return (
+    <div className="status-vaelger" role="group" aria-label="Status">
+      {STATUSSER.map(st => (
+        <button key={st} type="button" aria-pressed={p.stage === st}
+          className={`${p.stage === st ? "on" : ""}${st === "tabt" ? " tabt" : ""}`}
+          onClick={() => {
+            if (st === p.stage) return;
+            if (st === "tabt" && !bekraeft) { setBekraeft(true); return; }
+            setBekraeft(false); onVaelg(st);
+          }}>
+          {st === "tabt" && bekraeft ? "Tabt? Tryk igen" : STAGES[st]}
+        </button>
+      ))}
+    </div>
   );
 }

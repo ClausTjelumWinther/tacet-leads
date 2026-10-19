@@ -395,6 +395,17 @@ export async function setFaktura(virksomhed_id: string, f: Faktura): Promise<voi
   if (error) throw error;
 }
 
+/** Skift status (stage) på et projekt. Skiftet skrives også i historikken, så du kan se, hvornår det skete.
+ *  Bliver det til kunde for første gang, sættes salgsdatoen til i dag. */
+export async function setStage(p: Projekt, stage: Stage): Promise<void> {
+  if (p.stage === stage) return;
+  const linje = `${stamp()}: Status: ${STAGES[p.stage]} → ${STAGES[stage]}`;
+  const patch: Record<string, unknown> = { stage, noter: p.noter ? `${linje}\n${p.noter}` : linje };
+  if (stage === "kunde" && !p.dato) patch.dato = today();
+  const { error } = await supabase.from("projekter").update(patch).eq("id", p.id);
+  if (error) throw error;
+}
+
 /** Sæt eller fjern Velatir-markeringen på et projekt (peger på et Velatir-abonnement). */
 export async function setVelatir(id: string, velatir: boolean): Promise<void> {
   const { error } = await supabase.from("projekter").update({ velatir }).eq("id", id);

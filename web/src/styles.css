@@ -298,3 +298,10 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .kp-ekstra{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 .sheet .login-card{align-self:center;border:0;background:transparent;padding:8px 0}
 .login-card .linkbtn{align-self:center;margin-top:4px}
+/* Status-vælger på projektkortet */
+.status-vaelger{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 4px}
+.status-vaelger button{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;min-height:34px}
+.status-vaelger button:hover{border-color:var(--accent);color:var(--accent)}
+.status-vaelger button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+.status-vaelger button.tabt.on{background:var(--muted);border-color:var(--muted)}
+.status-vaelger button.tabt:not(.on):hover{border-color:var(--warn);color:var(--warn)}
