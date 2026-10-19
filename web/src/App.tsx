@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { loadAll, errorText, type Data } from "./data";
 import Login from "./Login";
+import NyAdgangskode from "./NyAdgangskode";
 import Header, { type Jump } from "./Header";
 import Lists, { type Tab, TABS } from "./Lists";
 import Focus, { type FocusKey } from "./Focus";
@@ -13,15 +14,25 @@ import { updateIfNewer, versionLabel } from "./version";
 // App styrer to ting: er du logget ind, og hvad kigger du på lige nu.
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  // true, når du kommer fra "Glemt adgangskode?"-mailen og skal vælge en ny.
+  const [nulstil, setNulstil] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === "PASSWORD_RECOVERY") setNulstil(true);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
   if (session === undefined) return <main className="center muted">Starter…</main>;
   if (!session) return <Login />;
+  if (nulstil) return (
+    <main className="login">
+      <NyAdgangskode titel="Vælg ny adgangskode" onFaerdig={() => setNulstil(false)} />
+    </main>
+  );
   return <Shell />;
 }
 
@@ -42,6 +53,7 @@ function Shell() {
   const [focus, setFocus] = useState<FocusKey | null>(null);
   const [quick, setQuick] = useState(false);
   const [voice, setVoice] = useState(false);
+  const [skiftKode, setSkiftKode] = useState(false);
   // Søgeteksten bor her, så den bliver stående, når du åbner et fokuskort og går tilbage.
   const [query, setQuery] = useState("");
 
@@ -133,6 +145,7 @@ function Shell() {
       {loadedAt && (
         <footer className="foot">
           Hentet {loadedAt.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })} · version {versionLabel()}
+          <button type="button" className="linkbtn" onClick={() => setSkiftKode(true)}>Skift adgangskode</button>
           <button type="button" className="linkbtn" onClick={() => supabase.auth.signOut()}>Log ud</button>
         </footer>
       )}
@@ -143,6 +156,13 @@ function Shell() {
         </div>
       )}
       {voice && data && <VoiceNote data={data} onClose={() => setVoice(false)} onSaved={afterSave} />}
+      {skiftKode && (
+        <div className="sheet-bg" onClick={() => setSkiftKode(false)}>
+          <div className="sheet" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+            <NyAdgangskode titel="Skift adgangskode" onFaerdig={() => setSkiftKode(false)} onLuk={() => setSkiftKode(false)} />
+          </div>
+        </div>
+      )}
       {quick && data && <QuickNote data={data} onClose={() => setQuick(false)} onSaved={afterSave} />}
     </div>
   );

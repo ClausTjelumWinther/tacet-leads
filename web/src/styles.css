@@ -296,3 +296,5 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 /* Flere kontaktpersoner i Kontakt-boksen */
 .kp-navn{font-weight:500;font-size:14px;margin-bottom:2px}
 .kp-ekstra{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.sheet .login-card{align-self:center;border:0;background:transparent;padding:8px 0}
+.login-card .linkbtn{align-self:center;margin-top:4px}
