@@ -187,6 +187,9 @@ function useOptagelse({ hent, skriv }: Lyt) {
   const [lytter, setLytter] = useState(false);
   const [skriver, setSkriver] = useState(false);   // venter på teksten fra Whisper
   const [fejl, setFejl] = useState("");
+  const [sekunder, setSekunder] = useState(0);     // hvor længe der er optaget
+  const [niveau, setNiveau] = useState(0);         // lydstyrken lige nu, 0–1, så du kan se, at den hører dig
+  const maalerRef = useRef<{ ctx: AudioContext; timer: number; raf: number } | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // Hvert start-tryk får et nummer. Kommer telefonens svar på "må jeg bruge mikrofonen?" først,
@@ -197,6 +200,10 @@ function useOptagelse({ hent, skriv }: Lyt) {
 
   /** Sluk mikrofonen helt, så iPhone viser, at den ikke længere bruges, og kan starte den igen næste gang. */
   function slukMikrofon() {
+    const m = maalerRef.current;
+    maalerRef.current = null;
+    if (m) { clearInterval(m.timer); cancelAnimationFrame(m.raf); void m.ctx.close().catch(() => {}); }
+    setNiveau(0);
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
   }
@@ -217,6 +224,7 @@ function useOptagelse({ hent, skriv }: Lyt) {
       recRef.current = rec;
       rec.start();
       setLytter(true);
+      startMaaler(stream);
       return "ok";
     } catch (e) {
       if (min !== runde.current) return "fejl";
@@ -226,6 +234,35 @@ function useOptagelse({ hent, skriv }: Lyt) {
         ? "Ingen adgang til mikrofonen. Giv adgang i indstillingerne, eller brug mikrofonen på tastaturet."
         : "Mikrofonen kunne ikke starte. Prøv igen.");
       return "fejl";
+    }
+  }
+
+  /** Tæl sekunder og mål lydstyrken, så skærmen kan vise, at der bliver lyttet. */
+  function startMaaler(stream: MediaStream) {
+    setSekunder(0);
+    const begyndt = Date.now();
+    const timer = window.setInterval(() => setSekunder(Math.floor((Date.now() - begyndt) / 1000)), 500);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Ctx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new Ctx();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.fftSize);
+      let sidst = 0;
+      const tik = () => {
+        analyser.getByteTimeDomainData(data);
+        let top = 0;
+        for (const v of data) top = Math.max(top, Math.abs(v - 128));
+        const nu = Date.now();
+        if (nu - sidst > 80) { setNiveau(Math.min(1, top / 64)); sidst = nu; }   // ca. 12 gange i sekundet
+        if (maalerRef.current) maalerRef.current.raf = requestAnimationFrame(tik);
+      };
+      maalerRef.current = { ctx, timer, raf: requestAnimationFrame(tik) };
+    } catch {
+      // Ingen lydmåler i denne browser. Uret virker stadig.
+      maalerRef.current = { ctx: { close: async () => {} } as AudioContext, timer, raf: 0 };
     }
   }
 
@@ -275,7 +312,7 @@ function useOptagelse({ hent, skriv }: Lyt) {
 
   useEffect(() => () => slip(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { lytter, skriver, fejl, start, stop, slip };
+  return { lytter, skriver, fejl, sekunder, niveau, start, stop, slip };
 }
 
 /**
@@ -311,7 +348,9 @@ export function useDiktat(lyt: Lyt) {
 
   function slip() { optag.slip(); tale.slip(); }
 
-  return { lytter: optag.lytter || tale.lytter, skriver: optag.skriver, fejl, start, stop, slip };
+  return { lytter: optag.lytter || tale.lytter, skriver: optag.skriver, fejl, start, stop, slip,
+    // Kun ved optagelse: tid og lydniveau til OptagerStatus.
+    sekunder: optag.lytter ? optag.sekunder : null, niveau: optag.niveau };
 }
 
 /** compact = kun mikrofon-ikonet, til steder hvor der er trangt (fx "Til mig selv"). */
@@ -322,7 +361,7 @@ export function DictateButton({ value, onChange, compact, onTravl }: {
   const sidstRef = useRef(value);  // det, vi selv skrev i feltet sidst
   const valueRef = useRef(value);
   valueRef.current = value;
-  const { lytter, skriver, fejl, start, stop, slip } = useDiktat({
+  const { lytter, skriver, fejl, start, stop, slip, sekunder, niveau } = useDiktat({
     hent: () => valueRef.current,
     skriv: (tekst, live) => {
       const v = (tekst + live).trimStart();
@@ -354,7 +393,30 @@ export function DictateButton({ value, onChange, compact, onTravl }: {
         {!compact && <span>{skriver ? "Skriver …" : lytter ? "Stop" : "Indtal"}</span>}
         {compact && skriver && <span>…</span>}
       </button>
+      <OptagerStatus lytter={lytter} skriver={skriver} sekunder={sekunder} niveau={niveau} />
       {fejl && <span className="status err">{fejl}</span>}
     </>
+  );
+}
+
+/**
+ * Viser tydeligt, at der bliver optaget: rød prik, tid og en lille lydmåler, der bevæger sig, når du taler.
+ * Bagefter "Skriver det ned …", mens Whisper arbejder.
+ */
+export function OptagerStatus({ lytter, skriver, sekunder, niveau }: {
+  lytter: boolean; skriver: boolean; sekunder: number | null; niveau: number;
+}) {
+  if (skriver) return <span className="rec-status skriver" role="status">Skriver det ned …</span>;
+  if (!lytter || sekunder === null) return null;
+  const tid = `${Math.floor(sekunder / 60)}:${String(sekunder % 60).padStart(2, "0")}`;
+  return (
+    <span className="rec-status" role="status">
+      <span className="rec-dot" aria-hidden="true" />
+      <b>Optager {tid}</b>
+      <span className="rec-level" aria-hidden="true">
+        {[0.15, 0.35, 0.55, 0.75, 0.9].map((t, i) => <i key={i} className={niveau > t ? "on" : ""} />)}
+      </span>
+      <span className="muted">Tryk på mikrofonen, når du er færdig</span>
+    </span>
   );
 }
