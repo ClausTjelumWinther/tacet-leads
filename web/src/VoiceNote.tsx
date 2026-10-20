@@ -5,7 +5,7 @@ import {
 } from "./data";
 import LeadFields, { DubletAdvarsel, leadMangler, tomtLead } from "./LeadFields";
 import { short } from "./dates";
-import { canDictate, useDiktat } from "./Dictate";
+import { OptagerStatus, canDictate, useDiktat } from "./Dictate";
 
 // Mikrofonen i tre trin:
 //   1. "lyt"      – telefonens talegenkendelse skriver det ned, mens du taler
@@ -198,7 +198,9 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
                   aria-label={listening ? "Stop optagelse" : "Start optagelse"} disabled={step === "sorterer" || skriver}>
                   <MicIcon />
                 </button>
-                <span className="muted">{skriver ? "Skriver det ned …" : listening ? "Jeg lytter … fortæl hvem du har talt med, og hvad I talte om." : text ? "Tryk for at tale videre." : "Tryk for at tale."}</span>
+                {skriver || diktat.sekunder !== null
+                  ? <OptagerStatus lytter={listening} skriver={skriver} sekunder={diktat.sekunder} niveau={diktat.niveau} />
+                  : <span className="muted">{listening ? "Jeg lytter … fortæl hvem du har talt med, og hvad I talte om." : text ? "Tryk for at tale videre." : "Tryk for at tale."}</span>}
               </div>
             ) : (
               <p className="muted">Din browser kan ikke lytte direkte. Tryk i feltet og brug mikrofonen på tastaturet.</p>

@@ -306,3 +306,16 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .status-vaelger button.tabt.on{background:var(--muted);border-color:var(--muted)}
 .status-vaelger button.tabt:not(.on):hover{border-color:var(--warn);color:var(--warn)}
 .mine-add .status.err{flex-basis:100%;padding:2px 4px 6px;font-size:13px}
+
+/* Optager: rød prik, tid og lydmåler, så man kan se, at der bliver lyttet */
+.rec-status{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px 8px;font-size:13px;color:var(--ink)}
+.mine-add .rec-status{flex-basis:100%;padding:4px 4px 6px}
+.rec-status .muted{font-size:12px}
+.rec-status.skriver{color:var(--muted)}
+.rec-dot{width:10px;height:10px;border-radius:50%;background:#d33}
+@media (prefers-reduced-motion:no-preference){ .rec-dot{animation:recblink 1s ease-in-out infinite} }
+@keyframes recblink{50%{opacity:.25}}
+.rec-level{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
+.rec-level i{display:block;width:4px;border-radius:1px;background:var(--line)}
+.rec-level i:nth-child(1){height:4px}.rec-level i:nth-child(2){height:6px}.rec-level i:nth-child(3){height:9px}.rec-level i:nth-child(4){height:11px}.rec-level i:nth-child(5){height:14px}
+.rec-level i.on{background:var(--accent)}
