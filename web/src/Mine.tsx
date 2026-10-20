@@ -15,6 +15,7 @@ export default function Mine({ data, onChanged }: { data: Data; onChanged: () =>
   const [tekst, setTekst] = useState("");
   const [dato, setDato] = useState("");
   const [busy, setBusy] = useState(false);
+  const [optager, setOptager] = useState(false);   // mikrofonen optager eller skriver ned
   const [fejl, setFejl] = useState("");
   const [klaret, setKlaret] = useState<Set<string>>(new Set()); // streges over, mens de gemmes
   const datoRef = useRef<HTMLInputElement>(null);
@@ -101,8 +102,8 @@ export default function Mine({ data, onChanged }: { data: Data; onChanged: () =>
           {/* Usynligt datofelt: åbnes fra ikonet ovenfor */}
           <input ref={datoRef} type="date" value={dato} onChange={e => setDato(e.target.value)} tabIndex={-1} aria-hidden="true" />
         </span>
-        <DictateButton value={tekst} onChange={setTekst} compact />
-        {tekst.trim() && <button type="submit" className="btn primary add-btn" disabled={busy}>{busy ? "…" : "Tilføj"}</button>}
+        <DictateButton value={tekst} onChange={setTekst} compact onTravl={setOptager} />
+        {tekst.trim() && <button type="submit" className="btn primary add-btn" disabled={busy || optager}>{busy ? "…" : "Tilføj"}</button>}
       </form>
       {fejl && <p className="error" role="alert">{fejl}</p>}
     </section>

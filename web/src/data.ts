@@ -201,6 +201,21 @@ export interface Forslag {
   begrundelse: string;
 }
 
+/** Sender en lydoptagelse til edge-funktionen "transskriber" og får teksten tilbage.
+ *  Fejlen har `kode = "ingen_noegle"`, hvis optagelse ikke er sat op endnu. */
+export async function transcribe(lyd: Blob, filnavn: string): Promise<string> {
+  const form = new FormData();
+  form.append("lyd", lyd, filnavn);
+  const { data, error } = await supabase.functions.invoke("transskriber", { body: form });
+  if (error) {
+    let svar: { fejl?: string; kode?: string } = {};
+    try { svar = (await (error as { context?: Response }).context?.json()) ?? {}; } catch { /* intet læsbart svar */ }
+    throw Object.assign(new Error(svar.fejl || "Kunne ikke sende optagelsen. Tjek forbindelsen og prøv igen."), { kode: svar.kode });
+  }
+  if (data?.fejl) throw Object.assign(new Error(data.fejl), { kode: data.kode });
+  return (data?.tekst ?? "") as string;
+}
+
 /** Sender den indtalte tekst til edge-funktionen "struktur-note". Den skriver intet selv. */
 /** Kender appen allerede personen/projektet (fast), skal Claude kun stramme teksten op og finde løfterne. */
 export async function structure(transkript: string, fast?: { type: "person" | "projekt"; id: string }): Promise<Forslag> {

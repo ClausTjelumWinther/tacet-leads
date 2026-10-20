@@ -18,6 +18,7 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
   const [lead, setLead] = useState<NytLead>(tomtLead());
   const [leadNote, setLeadNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [optager, setOptager] = useState(false);   // mikrofonen optager eller skriver ned
   const [net, setNet] = useState<NyNetvaerk>(tomtNetvaerk());
 
   // Ny netværksperson: navn, næste skridt og dato skal være udfyldt.
@@ -137,8 +138,8 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
             <div className="composer">
               <textarea id="qnw-note" value={leadNote} onChange={e => setLeadNote(e.target.value)} placeholder="Hvem er personen, hvordan kender I hinanden, og hvad talte I om?" />
               <div className="acts">
-                <DictateButton value={leadNote} onChange={setLeadNote} />
-                <button type="button" className="btn primary" onClick={saveNet} disabled={busy}>{busy ? "Opretter…" : "Opret netværksperson"}</button>
+                <DictateButton value={leadNote} onChange={setLeadNote} onTravl={setOptager} />
+                <button type="button" className="btn primary" onClick={saveNet} disabled={busy || optager}>{busy ? "Opretter…" : "Opret netværksperson"}</button>
               </div>
             </div>
           </>
@@ -152,8 +153,8 @@ export default function QuickNote({ data, onClose, onSaved }: { data: Data; onCl
             <div className="composer">
               <textarea id="ql-note" value={leadNote} onChange={e => setLeadNote(e.target.value)} placeholder="Hvordan mødte I hinanden, og hvad talte I om?" />
               <div className="acts">
-                <DictateButton value={leadNote} onChange={setLeadNote} />
-                <button type="button" className="btn primary" onClick={saveLead} disabled={busy}>{busy ? "Opretter…" : "Opret lead"}</button>
+                <DictateButton value={leadNote} onChange={setLeadNote} onTravl={setOptager} />
+                <button type="button" className="btn primary" onClick={saveLead} disabled={busy || optager}>{busy ? "Opretter…" : "Opret lead"}</button>
               </div>
             </div>
           </>
