@@ -11,50 +11,63 @@ const SpeechRec: any = typeof window !== "undefined" && ((window as any).SpeechR
 /** Kan denne browser lytte? Hvis ikke, viser vi slet ikke knappen. */
 export const canDictate = !!SpeechRec;
 
+// ---------- Én fælles talegenkendelse for hele appen ----------
+// iPhone (især når Puls er lagt på hjemmeskærmen) kan finde på kun at lytte første gang,
+// hvis vi laver en ny talegenkendelse hver gang. Derfor genbruger vi den samme, så længe den virker,
+// og lader kun én knap "eje" den ad gangen.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let delt: any = null;
+let koerer = false;                                   // mellem onstart og onend
+let ejer: { overtaget: () => void } | null = null;   // den knap, der bruger den lige nu
+
+function hentRec() {
+  if (!delt) {
+    delt = new SpeechRec();
+    delt.lang = "da-DK";
+    delt.continuous = true;
+    delt.interimResults = true;
+  }
+  return delt;
+}
+
 /**
  * Lyt og skriv. `hent` giver den tekst, der står i feltet, når du trykker start.
  * `skriv` får hele teksten (færdige sætninger) og det, der lige nu bliver genkendt (live).
- *
- * Det vigtige her er, at der kun må være ÉN aktiv talegenkendelse ad gangen.
- * Især iPhone nægter at starte en ny, hvis en gammel stadig holder på mikrofonen.
- * Derfor bliver den gamle altid afbrudt (abort), før en ny starter.
  */
 export function useDiktat({ hent, skriv }: { hent: () => string; skriv: (tekst: string, live: string) => void }) {
   const [lytter, setLytter] = useState(false);
   const [fejl, setFejl] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recRef = useRef<any>(null);
   const wantRef = useRef(false);   // vil vi stadig lytte? (Safari stopper selv efter en pause)
   const baseRef = useRef("");      // tekst før den aktuelle lytte-runde
   const cb = useRef({ hent, skriv });
   cb.current = { hent, skriv };
-
-  /** Slip mikrofonen helt. Den gamle genkendelse må ikke længere ændre noget. */
-  function afbryd() {
-    const r = recRef.current;
-    recRef.current = null;
-    if (!r) return;
-    r.onresult = null; r.onerror = null; r.onend = null;
-    try { r.abort(); } catch { /* var allerede stoppet */ }
-  }
+  // Denne knaps "identitet" over for den fælles genkendelse.
+  const mig = useRef({ overtaget: () => { wantRef.current = false; setLytter(false); } }).current;
 
   function start() {
     if (!SpeechRec) return;
-    afbryd();                      // ryd op efter sidst, før vi beder om mikrofonen igen
     setFejl("");
+    // En anden knap lytter? Så tager vi over.
+    if (ejer && ejer !== mig) ejer.overtaget();
+    ejer = mig;
+
     const nu = cb.current.hent();
     baseRef.current = nu.trim() ? nu.trimEnd() + " " : "";
     wantRef.current = true;
     let tommeRunder = 0;           // runder i træk, hvor intet blev hørt
-
-    const rec = new SpeechRec();
-    rec.lang = "da-DK";
-    rec.continuous = true;
-    rec.interimResults = true;
     let finals = "";
     let hoerte = false;
+    let ventStart = false;         // den gamle runde skal lige slutte, før vi starter igen
+
+    const rec = hentRec();
+    // Tegn på, at mikrofonen faktisk lytter. Så kan vagten nedenfor slappe af.
+    const svarer = () => { koerer = true; clearTimeout(vagt); };
+    rec.onstart = svarer;
+    rec.onaudiostart = svarer;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
+      if (ejer !== mig) return;
+      svarer();
       hoerte = true;
       let live = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -66,19 +79,25 @@ export function useDiktat({ hent, skriv }: { hent: () => string; skriv: (tekst: 
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onerror = (e: any) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        wantRef.current = false;
-        setFejl("Ingen adgang til mikrofonen. Giv adgang i indstillingerne, eller brug mikrofonen på tastaturet.");
-      } else if (e.error === "audio-capture") {
-        wantRef.current = false;
-        setFejl("Mikrofonen er optaget eller blev ikke fundet. Prøv igen om et øjeblik.");
-      } else if (e.error === "network") {
-        wantRef.current = false;
-        setFejl("Talegenkendelsen kræver internet. Prøv igen.");
-      }
+      if (ejer !== mig) return;
+      const kode = String(e.error ?? "");
       // "no-speech" og "aborted" er ikke rigtige fejl: onend kommer bagefter og tager sig af det.
+      if (kode === "no-speech" || kode === "aborted") return;
+      wantRef.current = false;
+      if (kode === "not-allowed" || kode === "service-not-allowed") {
+        setFejl("Ingen adgang til mikrofonen. Giv adgang i indstillingerne, eller brug mikrofonen på tastaturet.");
+      } else if (kode === "audio-capture") {
+        setFejl("Mikrofonen er optaget. Prøv igen om et øjeblik.");
+      } else if (kode === "network") {
+        setFejl("Talegenkendelsen kræver internet. Prøv igen.");
+      } else {
+        setFejl(`Mikrofonen stoppede (${kode}). Prøv igen.`);
+      }
     };
     rec.onend = () => {
+      koerer = false;
+      if (ventStart) { ventStart = false; begynd(); return; }
+      if (ejer !== mig) return;
       // Gem det hørte, og fjern den grå live-tekst.
       baseRef.current = (baseRef.current + finals).trimStart();
       if (baseRef.current && !baseRef.current.endsWith(" ")) baseRef.current += " ";
@@ -88,37 +107,71 @@ export function useDiktat({ hent, skriv }: { hent: () => string; skriv: (tekst: 
       hoerte = false;
       // Safari stopper efter en pause. Vi lytter videre, men giver op efter tre tomme runder,
       // så den ikke kører i ring og holder på mikrofonen.
-      if (wantRef.current && tommeRunder < 3) {
-        try { rec.start(); return; } catch { /* kunne ikke starte igen */ }
-      }
+      if (wantRef.current && tommeRunder < 3) { begynd(); return; }
       wantRef.current = false;
-      if (recRef.current === rec) recRef.current = null;
+      ejer = null;
       setLytter(false);
     };
-    recRef.current = rec;
-    try { rec.start(); setLytter(true); }
-    catch { afbryd(); wantRef.current = false; setFejl("Mikrofonen kunne ikke starte. Prøv igen."); }
+
+    // Vagten: svarer mikrofonen ikke inden for 3 sekunder, smider vi genkendelsen ud,
+    // så næste tryk starter med en frisk, og fortæller det.
+    let vagt = 0;
+    let foerste = true;            // første runde er den, du selv startede med et tryk
+    function begynd() {
+      clearTimeout(vagt);
+      const sigDet = foerste;
+      foerste = false;
+      vagt = window.setTimeout(() => {
+        if (koerer || ejer !== mig || !wantRef.current) return;
+        try { rec.abort(); } catch { /* ingenting */ }
+        if (delt === rec) delt = null;
+        wantRef.current = false; ejer = null; setLytter(false);
+        if (sigDet) setFejl("Mikrofonen svarede ikke. Tryk igen.");
+      }, 3000);
+      try { rec.start(); }
+      catch {
+        // Fx "already started": den gamle runde kører stadig. Afbryd og start, når den er slut.
+        ventStart = true;
+        try { rec.abort(); } catch { /* ingenting */ }
+      }
+    }
+
+    if (koerer) {
+      ventStart = true;
+      try { rec.abort(); } catch { /* ingenting */ }
+      // Kommer den gamle runde aldrig til ende, starter vi alligevel efter et sekund.
+      setTimeout(() => { if (ventStart) { ventStart = false; koerer = false; begynd(); } }, 1000);
+    } else begynd();
+    setLytter(true);
   }
 
-  /** Stop pænt, så den sidste sætning når at komme med. Kommer der ikke et svar, slipper vi selv mikrofonen. */
+  /** Stop pænt, så den sidste sætning når at komme med. */
   function stop() {
     wantRef.current = false;
     setLytter(false);
-    const r = recRef.current;
-    if (!r) return;
+    if (ejer !== mig || !delt) return;
+    const r = delt;
     try { r.stop(); } catch { /* var allerede stoppet */ }
-    setTimeout(() => { if (recRef.current === r) afbryd(); }, 1500);
+    // Kommer der ikke et svar, slipper vi selv mikrofonen.
+    setTimeout(() => {
+      if (!koerer || ejer !== mig) return;
+      try { r.abort(); } catch { /* ingenting */ }
+      koerer = false; ejer = null;
+    }, 1500);
   }
 
-  /** Stop med det samme og smid det, der ikke er nået frem (fx når teksten lige er gemt). */
+  /** Stop med det samme (fx når teksten lige er gemt). */
   function slip() {
     wantRef.current = false;
-    afbryd();
     setLytter(false);
+    if (ejer !== mig) return;
+    ejer = null;
+    try { delt?.abort(); } catch { /* ingenting */ }
   }
 
   // Luk mikrofonen, når komponenten forsvinder.
-  useEffect(() => () => { wantRef.current = false; afbryd(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => { wantRef.current = false; if (ejer === mig) { ejer = null; try { delt?.abort(); } catch { /* ingenting */ } } }, []);
 
   return { lytter, fejl, start, stop, slip };
 }
