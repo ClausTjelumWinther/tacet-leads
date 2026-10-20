@@ -25,7 +25,7 @@ const tool = {
     type: "object",
     properties: {
       maal_type: { type: "string", enum: ["person", "projekt", "ny_person", "mig_selv", "nyt_lead"], description: "Hvad noten skal gemmes på. mig_selv = noget Claus selv skal huske, uden en person eller kunde. nyt_lead = et firma, der ikke er på listen, og som kan blive kunde." },
-      maal_id: { type: "string", description: "id fra listen. Udelades ved ny_person." },
+      maal_id: { type: "string", description: "Nøglen fra listen, fx P12 eller F3. Udelades ved ny_person." },
       ny_person_navn: { type: "string", description: "Fulde navn, kun ved ny_person." },
       note: { type: "string", description: "Kort og præcis note på dansk i jeg-form, uden dato. Fjern fyldord, gentagelser og talesprog, men bevar ALLE konkrete detaljer (navne, familie, interesser, tal, aftaler)." },
       opgaver: {
@@ -91,18 +91,34 @@ Deno.serve(async (req) => {
   ]);
   if (pe.error || pr.error) return json({ fejl: "Kunne ikke læse personer og projekter." }, 500);
 
+  // Claude får korte nøgler (P1, P2 … for personer, F1, F2 … for firmaer/projekter) i stedet for de lange id'er.
+  // Lange id'er bliver nogle gange skrevet en anelse forkert af modellen, og så "fandtes" personen ikke.
   // deno-lint-ignore no-explicit-any
-  const personer = (pe.data as any[]).map(p => `person | ${p.id} | ${p.navn}${p.firma ? " | " + p.firma.firmanavn : ""} | ${p.kategori}`);
-  // deno-lint-ignore no-explicit-any
-  const projekter = (pr.data as any[]).map(p => `projekt | ${p.id} | ${p.firma?.firmanavn ?? p.produkt}${p.firma?.kontaktperson ? " | kontakt: " + p.firma.kontaktperson : ""} | ${p.stage}`);
+  const pData = pe.data as any[], fData = pr.data as any[];
+  const personer = pData.map((p, i) => `P${i + 1} | person | ${p.navn}${p.firma ? " | " + p.firma.firmanavn : ""} | ${p.kategori}`);
+  const projekter = fData.map((p, i) => `F${i + 1} | projekt | ${p.firma?.firmanavn ?? p.produkt}${p.firma?.kontaktperson ? " | kontakt: " + p.firma.kontaktperson : ""} | ${p.stage}`);
 
-  // Alle kandidater med læsbart navn (bruges til at tjekke id'er og vise navnet i appen).
-  const alle = [
-    // deno-lint-ignore no-explicit-any
-    ...(pe.data as any[]).map(p => ({ type: "person", id: p.id, navn: p.navn + (p.firma ? ` · ${p.firma.firmanavn}` : "") })),
-    // deno-lint-ignore no-explicit-any
-    ...(pr.data as any[]).map(p => ({ type: "projekt", id: p.id, navn: p.firma?.firmanavn ?? p.produkt })),
+  // Alle kandidater med læsbart navn (bruges til at tjekke svaret og vise navnet i appen).
+  type Kandidat = { noegle: string; type: "person" | "projekt"; id: string; navn: string; rent: string };
+  const alle: Kandidat[] = [
+    ...pData.map((p, i) => ({ noegle: `P${i + 1}`, type: "person" as const, id: p.id, rent: p.navn as string,
+      navn: p.navn + (p.firma ? ` · ${p.firma.firmanavn}` : "") })),
+    ...fData.map((p, i) => ({ noegle: `F${i + 1}`, type: "projekt" as const, id: p.id, rent: (p.firma?.kontaktperson ?? "") as string,
+      navn: (p.firma?.firmanavn ?? p.produkt) as string })),
   ];
+  // Små bogstaver, uden accenter og tegn, så navne kan sammenlignes.
+  const norm = (t: string) => (t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9æøå]+/g, " ").trim();
+  /** Find en person på listen med præcis dette navn. */
+  const personMedNavn = (navn: string) => {
+    const n = norm(navn);
+    return n ? alle.find(a => a.type === "person" && norm(a.rent) === n) : undefined;
+  };
+  /** Find det længste fulde personnavn, der står i selve teksten. */
+  const personITekst = (tekst: string) => {
+    const t = " " + norm(tekst) + " ";
+    return alle.filter(a => a.type === "person" && norm(a.rent).includes(" ") && t.includes(" " + norm(a.rent) + " "))
+      .sort((a, b) => b.rent.length - a.rent.length)[0];
+  };
   // Kender appen allerede målet, skal Claude kun stramme teksten op og finde løfterne.
   const fast = body.fast ? alle.find(a => a.id === body.fast!.id && a.type === body.fast!.type) : undefined;
 
@@ -120,10 +136,10 @@ Vælg målet for noten:
 Stavning: Noten er ofte indtalt, og talegenkendelsen hører navne forkert. "Tacet" er Claus' eget firma (fejlhøres fx som "tasset", "taset", "tacit"). "Velatir" er en samarbejdspartner, der sælger software til AI-governance (fejlhøres fx som "vela tir", "velatier", "fela tir"). "Puls" er Claus' leadsystem. Stav altid disse og navnene på listen nedenfor korrekt.
 
 Opgaver er KUN ting, Claus selv har lovet eller skal gøre. Ikke ting, den anden person skal gøre.
-Brug kun id'er fra listen nedenfor. Opfind aldrig id'er.
+Brug kun nøgler fra listen nedenfor (P… eller F…). Opfind aldrig nøgler.
 
-${fast ? `NOTEN HANDLER OM: ${fast.navn} (${fast.type}, id ${fast.id}). Brug præcis dette mål.\n` : ""}
-LISTE (type | id | navn | detaljer):
+${fast ? `NOTEN HANDLER OM: ${fast.navn} (${fast.type}, nøgle ${fast.noegle}). Brug præcis dette mål.\n` : ""}
+LISTE (nøgle | type | navn | detaljer):
 ${[...personer, ...projekter].join("\n")}`;
 
   // Prøv den stærke model først. Er den ikke tilgængelig på nøglen, så brug den hurtige,
@@ -158,8 +174,9 @@ ${[...personer, ...projekter].join("\n")}`;
         // deno-lint-ignore no-explicit-any
         const status = (e as any)?.status;
         console.error(`Claude-fejl med ${model}:`, status, (e as Error).message);
-        // Kun "model findes ikke / ingen adgang" giver mening at prøve igen med en anden model.
-        if (status !== 404 && status !== 403 && status !== 400) throw e;
+        // Model findes ikke, ingen adgang, travlt eller overbelastet: prøv den næste model.
+        // Forkert nøgle (401) eller manglende kredit hjælper det ikke at prøve igen.
+        if (![400, 403, 404, 429, 500, 502, 503, 529].includes(status)) throw e;
       }
     }
     if (!msg) throw sidsteFejl;
@@ -177,10 +194,24 @@ ${[...personer, ...projekter].join("\n")}`;
       forslag.maal_navn = forslag.nyt_lead.firmanavn; forslag.sikker = !!forslag.nyt_lead.firmanavn;
     } else if (forslag.maal_type === "mig_selv") {
       forslag.maal_navn = "Til mig selv"; forslag.sikker = true;
-    } else if (forslag.maal_type !== "ny_person") {
-      const hit = alle.find(a => a.id === forslag.maal_id && a.type === forslag.maal_type);
-      if (!hit) { forslag.maal_type = "ny_person"; forslag.sikker = false; forslag.ny_person_navn ??= ""; }
-      else forslag.maal_navn = hit.navn;
+    } else {
+      // Nøglen (P12) eller det lange id, hvis modellen alligevel brugte det.
+      const id = String(forslag.maal_id ?? "").trim();
+      let hit: Kandidat | undefined = forslag.maal_type === "ny_person" ? undefined
+        : alle.find(a => a.noegle.toLowerCase() === id.toLowerCase() || a.id === id);
+      // "Ny person", men navnet findes allerede: så er det den eksisterende person.
+      if (!hit && forslag.maal_type === "ny_person") {
+        hit = personMedNavn(forslag.ny_person_navn ?? "");
+        if (hit) forslag.sikker = true;
+      }
+      // Ugyldig nøgle: find personen ud fra navnet i teksten, men lad Claus bekræfte.
+      if (!hit && forslag.maal_type !== "ny_person") {
+        hit = personITekst(transkript);
+        forslag.sikker = false;
+        if (hit) forslag.begrundelse = `Fandt ${hit.rent} i teksten. Tjek at det er rigtigt.`;
+      }
+      if (hit) Object.assign(forslag, { maal_type: hit.type, maal_id: hit.id, maal_navn: hit.navn });
+      else if (forslag.maal_type !== "ny_person") { forslag.maal_type = "ny_person"; forslag.ny_person_navn ??= ""; }
     }
     return json({ forslag });
   } catch (e) {
