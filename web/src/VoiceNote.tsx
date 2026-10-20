@@ -64,7 +64,16 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
     writeDraft({ text, forslag, target, note, tasks, useNext, tid: tidRef.current, lead });
   }, [text, forslag, target, note, tasks, useNext, lead]);
 
-  function discard() { savedRef.current = true; writeDraft(null); stop(); onClose(); }
+  function discard() { savedRef.current = true; writeDraft(null); diktat.slip(); onClose(); }
+
+  /** Luk skærmen. Optager den stadig, venter vi på teksten og gemmer den som kladde først. */
+  async function luk() {
+    if (listening) {
+      const t = await stop();
+      if (t.trim()) writeDraft({ text: t, forslag, target, note, tasks, useNext, tid: tidRef.current, lead });
+    }
+    onClose();
+  }
 
   // ---------- Trin 1: lyt ----------
   // Selve lytningen ligger i useDiktat (Dictate.tsx), så den store og den lille mikrofon opfører sig ens.
@@ -75,8 +84,10 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
     skriv: (t, live) => { setText(t); setInterim(live); },
   });
   const listening = diktat.lytter;
+  const skriver = diktat.skriver;    // optagelsen er ved at blive skrevet ned
   const start = diktat.start;
-  const stop = diktat.stop;
+  /** Stop mikrofonen og vent på den færdige tekst. */
+  const stop = () => diktat.stop();
   useEffect(() => { if (diktat.fejl) setError(diktat.fejl); }, [diktat.fejl]);
 
   // Start med det samme, når skærmen åbnes. useDiktat slipper selv mikrofonen, når skærmen lukkes.
@@ -87,8 +98,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
 
   // ---------- Trin 2: Claude sorterer ----------
   async function sort() {
-    stop();
-    const t = text.trim();
+    const t = (listening || skriver ? await stop() : text).trim();
     if (t.length < 3) { setError("Sig eller skriv lidt mere først."); return; }
     setStep("sorterer"); setError("");
     try {
@@ -116,10 +126,11 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
   }
 
   // Hvis Claude ikke kan bruges lige nu: gem teksten som den er, og vælg selv personen.
-  function manual() {
-    stop();
-    setForslag({ maal_type: "ny_person", note: text.trim(), opgaver: [], sikker: false, begrundelse: "" });
-    setNote(text.trim()); setTasks([]); setTarget(null); setPicking(true); setStep("forslag"); setError("");
+  async function manual() {
+    const t = (listening ? await stop() : text).trim();
+    if (!t) return;
+    setForslag({ maal_type: "ny_person", note: t, opgaver: [], sikker: false, begrundelse: "" });
+    setNote(t); setTasks([]); setTarget(null); setPicking(true); setStep("forslag"); setError("");
   }
 
   // ---------- Trin 3: gem ----------
@@ -166,11 +177,11 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
   }
 
   return (
-    <div className="sheet-bg" onClick={() => { if (step === "lyt" && !text) onClose(); }}>
+    <div className="sheet-bg" onClick={() => { if (step === "lyt" && !text && !listening && !skriver) onClose(); }}>
       <div className="sheet voice" role="dialog" aria-modal="true" aria-labelledby="vn-title" onClick={e => e.stopPropagation()}>
         <div className="sheet-head">
           <h2 id="vn-title">{step === "forslag" || step === "gemmer" ? "Tjek og gem" : "Indtal"}</h2>
-          <button type="button" className="linkbtn" onClick={() => { stop(); onClose(); }}>
+          <button type="button" className="linkbtn" onClick={luk} disabled={skriver}>
             {text.trim() || note.trim() ? "Luk · gemmes som kladde" : "Luk"}</button>
         </div>
 
@@ -183,23 +194,23 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
           <>
             {SpeechRec ? (
               <div className="mic-row">
-                <button type="button" className={`mic${listening ? " on" : ""}`} onClick={listening ? stop : start}
-                  aria-label={listening ? "Stop optagelse" : "Start optagelse"} disabled={step === "sorterer"}>
+                <button type="button" className={`mic${listening ? " on" : ""}`} onClick={listening ? () => void stop() : start}
+                  aria-label={listening ? "Stop optagelse" : "Start optagelse"} disabled={step === "sorterer" || skriver}>
                   <MicIcon />
                 </button>
-                <span className="muted">{listening ? "Jeg lytter … fortæl hvem du har talt med, og hvad I talte om." : text ? "Tryk for at tale videre." : "Tryk for at tale."}</span>
+                <span className="muted">{skriver ? "Skriver det ned …" : listening ? "Jeg lytter … fortæl hvem du har talt med, og hvad I talte om." : text ? "Tryk for at tale videre." : "Tryk for at tale."}</span>
               </div>
             ) : (
               <p className="muted">Din browser kan ikke lytte direkte. Tryk i feltet og brug mikrofonen på tastaturet.</p>
             )}
             <textarea id="vn-text" className="voice-text" value={text + (interim ? (text ? " " : "") + interim : "")}
-              readOnly={listening} onChange={e => setText(e.target.value)}
+              readOnly={listening || skriver} onChange={e => setText(e.target.value)}
               placeholder="Fx: Har lige gået tur med Ole Schmidt. Han er glad for at være startet hos Aider … Jeg lovede at sende ham mit oplæg om AI i bestyrelser." />
             <div className="acts">
-              <button type="button" className="btn primary" onClick={sort} disabled={step === "sorterer" || !(text.trim())}>
+              <button type="button" className="btn primary" onClick={sort} disabled={step === "sorterer" || skriver || !(text.trim() || listening)}>
                 {step === "sorterer" ? "Claude sorterer …" : "Færdig – lad Claude sortere"}
               </button>
-              <button type="button" className="linkbtn" onClick={manual} disabled={step === "sorterer" || !text.trim()}>Gem uden AI</button>
+              <button type="button" className="linkbtn" onClick={manual} disabled={step === "sorterer" || skriver || !(text.trim() || listening)}>Gem uden AI</button>
             </div>
           </>
         )}
