@@ -189,6 +189,9 @@ function useOptagelse({ hent, skriv }: Lyt) {
   const [fejl, setFejl] = useState("");
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Hvert start-tryk får et nummer. Kommer telefonens svar på "må jeg bruge mikrofonen?" først,
+  // efter at du har trykket igen eller lukket skærmen, bliver den gamle mikrofon slukket med det samme.
+  const runde = useRef(0);
   const cb = useRef({ hent, skriv });
   cb.current = { hent, skriv };
 
@@ -200,8 +203,12 @@ function useOptagelse({ hent, skriv }: Lyt) {
 
   async function start(): Promise<"ok" | "fejl"> {
     setFejl("");
+    if (recRef.current) return "ok";             // optager allerede
+    const min = ++runde.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (min !== runde.current) { stream.getTracks().forEach(t => t.stop()); return "fejl"; }
+      slukMikrofon();                            // en evt. gammel strøm må ikke hænge ved
       streamRef.current = stream;
       // iPhone optager i mp4, Chrome i webm. Whisper forstår begge.
       const typer = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"];
@@ -212,6 +219,7 @@ function useOptagelse({ hent, skriv }: Lyt) {
       setLytter(true);
       return "ok";
     } catch (e) {
+      if (min !== runde.current) return "fejl";
       slukMikrofon();
       const navn = (e as Error)?.name;
       setFejl(navn === "NotAllowedError"
@@ -257,6 +265,7 @@ function useOptagelse({ hent, skriv }: Lyt) {
 
   /** Stop og smid optagelsen væk (fx når skærmen lukkes). */
   function slip() {
+    runde.current++;                             // et svar, der stadig er på vej, skal smides væk
     const rec = recRef.current;
     recRef.current = null;
     setLytter(false);
@@ -306,7 +315,10 @@ export function useDiktat(lyt: Lyt) {
 }
 
 /** compact = kun mikrofon-ikonet, til steder hvor der er trangt (fx "Til mig selv"). */
-export function DictateButton({ value, onChange, compact }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
+/** onTravl fortæller siden, når mikrofonen optager eller skriver ned, så den kan vente med at gemme. */
+export function DictateButton({ value, onChange, compact, onTravl }: {
+  value: string; onChange: (v: string) => void; compact?: boolean; onTravl?: (travl: boolean) => void;
+}) {
   const sidstRef = useRef(value);  // det, vi selv skrev i feltet sidst
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -325,6 +337,8 @@ export function DictateButton({ value, onChange, compact }: { value: string; onC
     if (lytter && value === "" && sidstRef.current !== "") slip();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, lytter]);
+
+  useEffect(() => { onTravl?.(lytter || skriver); }, [lytter, skriver]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!canDictate) return null;
 

@@ -27,6 +27,7 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
   const [tasks, setTasks] = useState<Task[]>([]);
   const [busy, setBusy] = useState(false);
   const [tightening, setTightening] = useState(false);
+  const [optager, setOptager] = useState(false);   // mikrofonen optager eller skriver ned
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null);
   const [tjekket, setTjekket] = useState(false); // har Claude set denne tekst?
 
@@ -96,14 +97,14 @@ export default function NoteComposer({ id, placeholder, saveLabel, target, autoF
       )}
 
       <div className="acts">
-        <DictateButton value={text} onChange={v => { setText(v); setTjekket(false); }} />
-        <button type="button" className="ai-btn" onClick={tighten} disabled={tightening || busy || text.trim().length < 3}>
+        <DictateButton value={text} onChange={v => { setText(v); setTjekket(false); }} onTravl={setOptager} />
+        <button type="button" className="ai-btn" onClick={tighten} disabled={tightening || busy || optager || text.trim().length < 3}>
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" />
           </svg>
           <span>{tightening ? "Claude strammer op …" : "Kort og præcis"}</span>
         </button>
-        <button type="button" className="btn primary" onClick={save} disabled={busy || tightening}>{busy ? "Gemmer…" : saveLabel}</button>
+        <button type="button" className="btn primary" onClick={save} disabled={busy || tightening || optager}>{busy ? "Gemmer…" : saveLabel}</button>
       </div>
       {msg && <p className={msg.err ? "error" : "muted small"} role="status">{msg.text}</p>}
     </div>
