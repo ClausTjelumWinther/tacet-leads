@@ -5,7 +5,7 @@ import {
 } from "./data";
 import LeadFields, { DubletAdvarsel, leadMangler, tomtLead } from "./LeadFields";
 import { short } from "./dates";
-import { retNavne } from "./ordbog";
+import { canDictate, useDiktat } from "./Dictate";
 
 // Mikrofonen i tre trin:
 //   1. "lyt"      – telefonens talegenkendelse skriver det ned, mens du taler
@@ -37,15 +37,13 @@ function writeDraft(k: Kladde | null) {
 /** Bruges af mikrofonknappen til at vise en prik, når der ligger en ikke-gemt note. */
 export const hasDraft = () => !!readDraft();
 
-// Browserens talegenkendelse hedder noget forskelligt i Chrome og Safari.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const SpeechRec: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+// Kan browseren lytte direkte? (Ellers bruger man mikrofonen på tastaturet.)
+const SpeechRec = canDictate;
 
 export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onClose: () => void; onSaved: () => Promise<void> }) {
   // Ligger der en kladde fra sidst, starter vi dér i stedet for at lytte.
   const [draft] = useState(readDraft);
   const [step, setStep] = useState<Step>(draft?.forslag ? "forslag" : "lyt");
-  const [listening, setListening] = useState(false);
   const [text, setText] = useState(draft?.text ?? "");   // det du har sagt (kan rettes)
   const [interim, setInterim] = useState("");    // det, der lige nu bliver genkendt
   const [error, setError] = useState("");
@@ -68,64 +66,22 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
 
   function discard() { savedRef.current = true; writeDraft(null); stop(); onClose(); }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recRef = useRef<any>(null);
-  const wantRef = useRef(false);   // vil vi stadig lytte? (Safari stopper selv efter en pause)
-  const baseRef = useRef("");      // tekst før den aktuelle lytte-runde
-
   // ---------- Trin 1: lyt ----------
-  function start() {
-    if (!SpeechRec) return;
-    setError("");
-    const rec = new SpeechRec();
-    rec.lang = "da-DK";
-    rec.continuous = true;
-    rec.interimResults = true;
-    baseRef.current = text ? text.trimEnd() + " " : "";
-    let finals = "";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (e: any) => {
-      let live = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) finals += retNavne(r[0].transcript) + " ";
-        else live += r[0].transcript;
-      }
-      setText((baseRef.current + finals).trimStart());
-      setInterim(live);
-    };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onerror = (e: any) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        wantRef.current = false;
-        setError("Appen har ikke adgang til mikrofonen. Giv adgang i telefonens indstillinger, eller brug mikrofonen på tastaturet.");
-      }
-    };
-    rec.onend = () => {
-      setInterim("");
-      if (wantRef.current) {
-        // Safari stopper efter en pause. Vi starter igen og bygger videre på teksten.
-        baseRef.current = ((baseRef.current + finals).trimEnd() + " ");
-        finals = "";
-        try { rec.start(); return; } catch { /* kunne ikke starte igen */ }
-      }
-      setListening(false);
-    };
-    recRef.current = rec;
-    wantRef.current = true;
-    try { rec.start(); setListening(true); } catch { setError("Mikrofonen kunne ikke starte. Prøv igen."); }
-  }
+  // Selve lytningen ligger i useDiktat (Dictate.tsx), så den store og den lille mikrofon opfører sig ens.
+  const textRef = useRef(text);
+  textRef.current = text;
+  const diktat = useDiktat({
+    hent: () => textRef.current,
+    skriv: (t, live) => { setText(t); setInterim(live); },
+  });
+  const listening = diktat.lytter;
+  const start = diktat.start;
+  const stop = diktat.stop;
+  useEffect(() => { if (diktat.fejl) setError(diktat.fejl); }, [diktat.fejl]);
 
-  function stop() {
-    wantRef.current = false;
-    recRef.current?.stop();
-    setListening(false);
-  }
-
-  // Start med det samme, når skærmen åbnes. Stop, hvis den lukkes.
+  // Start med det samme, når skærmen åbnes. useDiktat slipper selv mikrofonen, når skærmen lukkes.
   useEffect(() => {
     if (SpeechRec && !draft) start();
-    return () => { wantRef.current = false; recRef.current?.abort?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -258,7 +214,7 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
                 <button type="button" className="linkbtn" onClick={() => setPicking(true)}>Skift</button>
               </div>
             ) : (
-              <Picker data={data} initial={target?.navn ?? forslag.ny_person_navn ?? ""} hint={forslag.sikker ? "" : forslag.begrundelse}
+              <Picker data={data} initial={target?.navn.split(" · ")[0] || forslag.ny_person_navn || kendtNavn(text, data)} hint={forslag.sikker ? "" : forslag.begrundelse}
                 onPick={t => {
                   // Vælger du "nyt lead", fyldes firmanavnet og evt. Claudes næste skridt ind.
                   if (t.type === "lead") setLead(l => ({ ...l, firmanavn: t.navn, naeste_skridt: l.naeste_skridt || forslag.naeste_skridt?.tekst || "", naeste_skridt_dato: forslag.naeste_skridt?.dato || l.naeste_skridt_dato }));
@@ -317,12 +273,12 @@ export default function VoiceNote({ data, onClose, onSaved }: { data: Data; onCl
 function Picker({ data, initial, hint, onPick }: { data: Data; initial: string; hint: string; onPick: (t: Target) => void }) {
   const [q, setQ] = useState(initial);
   const hits = useMemo(() => {
-    const s = q.trim().toLowerCase();
+    const s = q.trim();
     if (!s) return [] as Target[];
-    const ppl: Target[] = data.personer.filter(x => x.navn.toLowerCase().includes(s))
+    const ppl: Target[] = data.personer.filter(x => passer(x.navn, s))
       .map(x => ({ type: "person", id: x.id, navn: x.navn + (x.firma ? ` · ${x.firma.firmanavn.trim()}` : "") }));
     const prj: Target[] = data.projekter.filter(p => p.stage !== "tabt" &&
-      (projectName(p).toLowerCase().includes(s) || (p.firma?.kontaktperson ?? "").toLowerCase().includes(s)))
+      (passer(projectName(p), s) || passer(p.firma?.kontaktperson ?? "", s)))
       .map(p => ({ type: "projekt", id: p.id, navn: projectName(p) }));
     return [...ppl, ...prj].slice(0, 6);
   }, [q, data]);
@@ -356,6 +312,24 @@ function Picker({ data, initial, hint, onPick }: { data: Data; initial: string; 
       </div>
     </div>
   );
+}
+
+// ---------- Navne ----------
+/** Små bogstaver, uden accenter og ekstra mellemrum, så "Christian  Tvede" og "christian tvede" er ens. */
+const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9æøå]+/g, " ").trim();
+
+/** Passer navnet på søgningen? Alle ord i søgningen skal findes i navnet, i vilkårlig rækkefølge. */
+function passer(navn: string, soeg: string): boolean {
+  const n = " " + norm(navn) + " ";
+  return norm(soeg).split(" ").filter(Boolean).every(o => n.includes(" " + o));
+}
+
+/** Find et navn fra personlisten, der står i den indtalte tekst. Bruges til at udfylde søgefeltet. */
+function kendtNavn(tekst: string, data: Data): string {
+  const t = " " + norm(tekst) + " ";
+  // Længste navn først, så "Christian Tvede" vinder over en anden "Christian".
+  const navne = data.personer.map(p => p.navn).filter(Boolean).sort((a, b) => b.length - a.length);
+  return navne.find(n => norm(n).includes(" ") && t.includes(" " + norm(n) + " ")) ?? "";
 }
 
 function MicIcon() {
