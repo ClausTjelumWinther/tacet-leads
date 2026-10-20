@@ -255,7 +255,7 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .mine-list li.done .m-txt{text-decoration:line-through;color:var(--muted);opacity:.6}
 .mine-empty{color:var(--muted);font-size:14px;margin:0;padding:12px 0 4px}
 
-.mine-add{display:flex;align-items:center;gap:4px;margin-top:12px;padding:4px 4px 4px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);transition:border-color .15s}
+.mine-add{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:12px;padding:4px 4px 4px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);transition:border-color .15s}
 .mine-add:focus-within{border-color:var(--accent)}
 .mine-add .plus{color:var(--muted);font-size:18px;line-height:1;margin-right:2px}
 .mine-add input:not([type="date"]){flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:16px;color:var(--ink);padding:8px 4px;outline:none}
@@ -305,3 +305,4 @@ textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8
 .status-vaelger button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
 .status-vaelger button.tabt.on{background:var(--muted);border-color:var(--muted)}
 .status-vaelger button.tabt:not(.on):hover{border-color:var(--warn);color:var(--warn)}
+.mine-add .status.err{flex-basis:100%;padding:2px 4px 6px;font-size:13px}
