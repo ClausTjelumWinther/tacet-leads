@@ -103,7 +103,8 @@ export function LinkedinFelt({ url, onSave }: { url: string | null; onSave: (url
         placeholder="Indsæt link fra LinkedIn" onChange={e => setV(e.target.value)} style={{ flex: 1 }} />
       <button type="button" className="btn" disabled={busy} onClick={async () => {
         setBusy(true);
-        try { await onSave(v); setRet(false); } finally { setBusy(false); }
+        // Fejler gemningen, bliver feltet stående med din tekst (fejlen vises øverst på kortet).
+        try { await onSave(v); setRet(false); } catch { /* vist allerede */ } finally { setBusy(false); }
       }}>{busy ? "Gemmer…" : "Gem"}</button>
       <button type="button" className="linkbtn" onClick={() => setRet(false)}>Fortryd</button>
     </div>
