@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
 import NextStep from "./NextStep";
 import { kundeStatus } from "./Kunder";
-import { Activity, Contact, Group, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
+import { Activity, Contact, Group, LinkedinFelt, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
 import NoteComposer, { saveTasks } from "./NoteComposer";
 
 export type FocusKey = { kind: "projekt" | "person"; id: string };
@@ -30,6 +30,9 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
     const p = data.projekter.find(x => x.id === focusKey.id);
     if (!p) return <div className="focus">{back}<div className="empty">Projektet findes ikke længere.</div></div>;
     const people = data.personer.filter(x => p.virksomhed_id && x.virksomhed_id === p.virksomhed_id);
+    // Kontaktpersonen står som tekst på firmaet. Findes hun/han også under personer, kan vi vise LinkedIn.
+    const kp = people.find(x => x.navn.trim() === (p.firma?.kontaktperson ?? "").trim());
+    const gemLinkedin = (id: string) => (url: string) => run(() => setLinkedin(id, url), url.trim() ? "LinkedIn er gemt" : "LinkedIn er fjernet");
     const others = data.projekter.filter(q => p.virksomhed_id && q.virksomhed_id === p.virksomhed_id && q.id !== p.id);
     const akt = haendelserFor(data, { projekt: p });
     const loefterP = data.loefter.filter(l => l.projekt_id === p.id || (!!l.person_id && people.some(x => x.id === l.person_id)));
@@ -103,11 +106,13 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
             <section className="panel"><div className="sec">Kontakt</div>
               {p.firma?.kontaktperson && <div className="kp-navn">{p.firma.kontaktperson.trim()}</div>}
               <Contact email={p.firma?.email ?? null} phone={p.firma?.mobilnummer ?? null} />
-              {/* Andre kontaktpersoner hos samme firma, med deres egen mail og telefon. */}
-              {people.filter(x => x.navn.trim() !== (p.firma?.kontaktperson ?? "").trim() && (x.email || x.mobilnummer)).map(x => (
+              {kp && <LinkedinFelt key={kp.id} url={kp.linkedin} onSave={gemLinkedin(kp.id)} />}
+              {/* Andre kontaktpersoner hos samme firma, med deres egen mail, telefon og LinkedIn. */}
+              {people.filter(x => x.id !== kp?.id && (x.email || x.mobilnummer || x.linkedin)).map(x => (
                 <div key={x.id} className="kp-ekstra">
                   <div className="kp-navn">{x.navn}</div>
-                  <Contact email={x.email} phone={x.mobilnummer} />
+                  {(x.email || x.mobilnummer) && <Contact email={x.email} phone={x.mobilnummer} />}
+                  <LinkedinFelt url={x.linkedin} onSave={gemLinkedin(x.id)} />
                 </div>
               ))}
             </section>
@@ -161,7 +166,10 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           </section>
         </div>
         <aside className="fside">
-          <section className="panel"><div className="sec">Kontakt</div><Contact email={x.email} phone={x.mobilnummer} /></section>
+          <section className="panel"><div className="sec">Kontakt</div>
+            <Contact email={x.email} phone={x.mobilnummer} />
+            <LinkedinFelt key={x.id} url={x.linkedin} onSave={url => run(() => setLinkedin(x.id, url), url.trim() ? "LinkedIn er gemt" : "LinkedIn er fjernet")} />
+          </section>
           <section className="panel"><div className="sec">Små løfter</div>
             <Promises items={loefterX} onDone={id => run(() => completeTask(id), "Løftet er klaret")} /></section>
           <section className="panel"><div className="sec">Mails og møder</div><Activity items={aktP} /></section>

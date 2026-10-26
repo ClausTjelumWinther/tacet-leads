@@ -84,6 +84,32 @@ export function Contact({ email, phone }: { email: string | null; phone: string 
   );
 }
 
+/** LinkedIn-profilen: et link, der åbner LinkedIn (appen på telefonen), plus "Ret", så du kan indsætte eller rette linket. */
+export function LinkedinFelt({ url, onSave }: { url: string | null; onSave: (url: string) => Promise<void> }) {
+  const [ret, setRet] = useState(false);
+  const [v, setV] = useState(url ?? "");
+  const [busy, setBusy] = useState(false);
+  if (!ret) return (
+    <div className="copyline">
+      {url
+        ? <a href={url} target="_blank" rel="noopener noreferrer" className="sel">LinkedIn ↗</a>
+        : <span className="empty tight">Ingen LinkedIn endnu.</span>}
+      <button type="button" className="linkbtn" onClick={() => { setV(url ?? ""); setRet(true); }}>{url ? "Ret" : "Tilføj LinkedIn"}</button>
+    </div>
+  );
+  return (
+    <div className="acts">
+      <input className="task-text" type="url" inputMode="url" value={v} autoFocus aria-label="LinkedIn-link"
+        placeholder="Indsæt link fra LinkedIn" onChange={e => setV(e.target.value)} style={{ flex: 1 }} />
+      <button type="button" className="btn" disabled={busy} onClick={async () => {
+        setBusy(true);
+        try { await onSave(v); setRet(false); } finally { setBusy(false); }
+      }}>{busy ? "Gemmer…" : "Gem"}</button>
+      <button type="button" className="linkbtn" onClick={() => setRet(false)}>Fortryd</button>
+    </div>
+  );
+}
+
 function CopyLine({ value, href }: { value: string; href: string }) {
   const [copied, setCopied] = useState(false);
   return (
