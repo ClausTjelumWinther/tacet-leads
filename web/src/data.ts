@@ -32,6 +32,7 @@ export interface Person {
   virksomhed_id: string | null;
   email: string | null;
   mobilnummer: string | null;
+  linkedin: string | null;          // link til LinkedIn-profilen
   noter: string | null;
   sidste_kontakt: string | null;
   firma: { firmanavn: string } | null;
@@ -118,7 +119,7 @@ export async function loadAll(): Promise<Data> {
       "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
       "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20, fakturanavn, cvr, adresse, postnummer, by)"),
     supabase.from("personer").select(
-      "id, navn, kategori, virksomhed_id, email, mobilnummer, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
+      "id, navn, kategori, virksomhed_id, email, mobilnummer, linkedin, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
     supabase.from("opgaver").select(
       "id, tekst, forfald, person:personer(navn), projekt:projekter(firma:virksomheder(firmanavn))").eq("faerdig", false).eq("til_mig", false),
     supabase.from("haendelser").select("id, dato, type, titel, email, person_id, projekt_id")
@@ -396,6 +397,14 @@ export async function addOpslag(dato: string, tekst: string, url: string): Promi
 export async function setGenkoeb(id: string, genkoeb: string, sidste_leverance: string | null): Promise<void> {
   const { error } = await supabase.from("projekter")
     .update({ genkoeb: genkoeb.trim() || null, sidste_leverance: sidste_leverance || null }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Gemmer LinkedIn-linket på en person. Mangler https://, sættes det på. Tomt felt fjerner linket. */
+export async function setLinkedin(person_id: string, url: string): Promise<void> {
+  let u = url.trim();
+  if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`;
+  const { error } = await supabase.from("personer").update({ linkedin: u || null }).eq("id", person_id);
   if (error) throw error;
 }
 
