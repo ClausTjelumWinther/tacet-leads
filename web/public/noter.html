@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E2E29">
+<meta name="robots" content="noindex">
+<title>Tacet · noter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wdth,wght@75..100,400..600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+:root { --deep: #0E2E29; --primary: #174A42; --sand: #F5F0EB; --muted: rgba(245,240,235,.58); --line: rgba(245,240,235,.16); --accent: #9FC3E6; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--deep); color: var(--sand); font-family: 'Instrument Sans', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+body { display: flex; flex-direction: column; height: 100dvh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 18px 10px; border-bottom: 0.5px solid var(--line); }
+#pos { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); white-space: nowrap; }
+#title { flex: 1; min-width: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 24px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#clock { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); background: none; border: 0.5px solid var(--line); border-radius: 99px; padding: 4px 10px; font-family: inherit; }
+#dot { width: 8px; height: 8px; border-radius: 50%; background: #c9873a; flex: none; transition: background .4s; }
+#dot.ok { background: #6fbf8e; }
+main { flex: 1; overflow-y: auto; padding: 18px 20px 24px; -webkit-overflow-scrolling: touch; }
+#step { display: none; font-size: 13px; letter-spacing: .04em; color: var(--accent); margin-bottom: 10px; }
+#step.on { display: block; }
+#note { font-size: 21px; line-height: 1.5; }
+#note p { margin: 0 0 .7em; }
+#note ul { margin: 0 0 .7em; padding: 0; list-style: none; }
+#note li { position: relative; padding-left: 1.1em; margin: 0 0 .45em; }
+#note li::before { content: ''; position: absolute; left: 0; top: .72em; width: .45em; height: 1px; background: var(--sand); opacity: .7; }
+#note b { font-weight: 600; }
+#note .none { color: var(--muted); font-style: italic; }
+#next { padding: 12px 20px; border-top: 0.5px solid var(--line); font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#next b { font-weight: 500; color: var(--sand); }
+nav { display: grid; grid-template-columns: 1fr 2.2fr; gap: 10px; padding: 10px 14px 14px; }
+nav button { appearance: none; border: 0; border-radius: 16px; font-family: inherit; font-size: 28px; height: 76px; color: var(--sand); background: rgba(245,240,235,.08); touch-action: manipulation; }
+nav button:active { background: rgba(245,240,235,.18); }
+#nx { background: var(--primary); }
+#wait { position: fixed; inset: 0; background: var(--deep); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 30px; text-align: center; }
+#wait h1 { margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 32px; }
+#wait p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; max-width: 30ch; }
+#wait[hidden] { display: none; }
+body.big #note { font-size: 25px; }
+body.win nav { display: none; }
+body.win #note { font-size: 24px; max-width: 46ch; }
+body.win main { padding: 28px 36px; }
+body.win #title { font-size: 30px; }
+</style>
+</head>
+<body>
+<header>
+  <span id="dot" title="Forbindelse"></span>
+  <span id="pos">– / –</span>
+  <span id="title">Venter på præsentationen</span>
+  <button id="clock" type="button" title="Tryk for at nulstille">0:00</button>
+</header>
+<main id="main">
+  <div id="step"></div>
+  <div id="note"></div>
+</main>
+<div id="next"></div>
+<nav>
+  <button id="pv" type="button" aria-label="Forrige">‹</button>
+  <button id="nx" type="button" aria-label="Næste">›</button>
+</nav>
+<div id="wait">
+  <h1>Tacet · noter</h1>
+  <p id="waitmsg">Forbinder til præsentationen …</p>
+</div>
+<script>
+(() => {
+  const SB_URL = 'https://vdebqppfkvcqjytbuhny.supabase.co';
+  const SB_KEY = 'sb_publishable_yyHRFNi3HMzAgLyXMK_GGQ_DdAjVLAE';
+  const $ = id => document.getElementById(id);
+  const local = (() => { try { return window.opener && window.opener.__tacetDeck; } catch (e) { return null; } })();
+  let send = () => {};
+  let t0 = Date.now();
+
+  const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  function renderNote(txt) {
+    if (!txt) return '<p class="none">Ingen noter til denne slide.</p>';
+    let out = '', list = [];
+    const flush = () => { if (list.length) { out += '<ul>' + list.map(l => '<li>' + inline(l) + '</li>').join('') + '</ul>'; list = []; } };
+    txt.split('\n').forEach(line => {
+      const l = line.trim();
+      if (/^[-•]\s+/.test(l)) list.push(l.replace(/^[-•]\s+/, ''));
+      else { flush(); if (l) out += '<p>' + inline(l) + '</p>'; }
+    });
+    flush();
+    return out;
+  }
+  let lastKey = '';
+  function render(s) {
+    $('wait').hidden = true;
+    $('pos').textContent = (s.i + 1) + ' / ' + s.n;
+    $('title').textContent = s.label || '';
+    const st = $('step');
+    st.classList.toggle('on', s.steps > 0);
+    st.textContent = s.steps > 0 ? 'Trin ' + (s.at + 1) + ' af ' + (s.steps + 1) : '';
+    const key = s.i + '|' + s.note;
+    if (key !== lastKey) { $('note').innerHTML = renderNote(s.note); $('main').scrollTop = 0; lastKey = key; }
+    $('next').innerHTML = s.next ? 'Næste: <b>' + esc(s.next) + '</b>' : 'Sidste slide';
+    document.title = (s.i + 1) + ' · ' + (s.label || 'noter');
+  }
+  function tick() {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $('clock').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+  setInterval(tick, 1000);
+  $('clock').onclick = () => { t0 = Date.now(); tick(); };
+  const me = (() => { try { let v = sessionStorage.getItem('tacet-noter-id'); if (!v) { v = Math.random().toString(36).slice(2, 10); sessionStorage.setItem('tacet-noter-id', v); } return v; } catch (e) { return Math.random().toString(36).slice(2, 10); } })();
+  $('nx').onclick = () => send('next');
+  $('pv').onclick = () => send('prev');
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); send('next'); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); send('prev'); }
+    else if (e.key === '+') document.body.classList.toggle('big');
+  });
+
+  /* skærmen må ikke gå i dvale under mødet */
+  let lock = null;
+  const keepAwake = async () => { try { if ('wakeLock' in navigator && !lock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => { lock = null; }); } } catch (e) {} };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+  document.addEventListener('click', keepAwake);
+  keepAwake();
+
+  if (local) {
+    /* notevindue på samme pc: taler direkte med præsentationen */
+    document.body.classList.add('win');
+    $('dot').classList.add('ok');
+    send = c => local.cmd(c);
+    local.listen(render);
+    window.addEventListener('beforeunload', () => local.unlisten(render));
+    return;
+  }
+
+  /* telefon: forbindelse gennem Supabase Realtime, koden står i adressen */
+  const code = (location.hash || '').replace('#', '').trim();
+  if (!/^[a-z0-9]{8,32}$/i.test(code)) { $('waitmsg').textContent = 'Scan QR-koden fra præsentationen (tryk N på pc’en).'; return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+  s.onerror = () => { $('waitmsg').textContent = 'Kunne ikke hente forbindelsen. Tjek nettet.'; };
+  s.onload = () => {
+    const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+    const ch = sb.channel('tacet-noter-' + code, { config: { broadcast: { self: false } } });
+    let alive = false, lastSeen = 0, blocked = false;
+    ch.on('broadcast', { event: 'state' }, ({ payload }) => { lastSeen = Date.now(); alive = true; $('dot').classList.add('ok'); if (payload.owner && payload.owner !== me) blocked = true; if (!blocked) render(payload); });
+    ch.on('broadcast', { event: 'bye' }, () => { $('dot').classList.remove('ok'); });
+    ch.on('broadcast', { event: 'owner' }, ({ payload }) => { if (payload.id === me) { blocked = false; return; } blocked = true; { $('wait').hidden = false; $('waitmsg').textContent = 'En anden telefon styrer præsentationen. Tryk N på pc’en og scan igen for at overtage.'; } });
+    ch.subscribe(status => {
+      if (status === 'SUBSCRIBED') { $('waitmsg').textContent = 'Forbundet. Venter på præsentationen …'; send('hello'); }
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { $('dot').classList.remove('ok'); $('waitmsg').textContent = 'Forbindelsen drillede. Prøver igen …'; }
+    });
+    send = c => ch.send({ type: 'broadcast', event: 'cmd', payload: { c, id: me } });
+    setInterval(() => { if (Date.now() - lastSeen > 30000) { $('dot').classList.remove('ok'); send('hello'); } }, 10000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') send('hello'); });
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

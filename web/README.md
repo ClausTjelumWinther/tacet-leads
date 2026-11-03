@@ -26,6 +26,7 @@ Læs filerne i denne rækkefølge, så giver det mening:
 | `src/parts.tsx` | Små byggesten, der går igen: rækker, datochips, tidslinje, kontakt. |
 | `src/styles.css` | Hele designet. Farverne står som tokens øverst. |
 | `public/` | Ikoner og `manifest.webmanifest`, der gør appen installerbar. |
+| `public/noter.html` | Noter og fjernbetjening til Claus' HTML-præsentationer. Selvstændig side uden for React-appen: telefonen scanner QR-koden fra præsentationen (tasten N) og følger med via Supabase Realtime. Intet gemmes i databasen. |
 
 **Tre begreber at kende:**
 - **Komponent:** en funktion, der returnerer HTML (fx `ProjectRow`). React tegner den igen, når dens data ændrer sig.
