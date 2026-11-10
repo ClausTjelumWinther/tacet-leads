@@ -438,8 +438,8 @@ export async function setVelatir(id: string, velatir: boolean): Promise<void> {
   if (error) throw error;
 }
 
-/** Økonomien på et projekt: pipelineværdi, vinderchance og faktureret. Tomt felt gemmes som "ved ikke" (null). */
-export async function setOekonomi(id: string, o: { vaerdi: number | null; sandsynlighed: number | null; faktureret: number | null }): Promise<void> {
+/** Økonomien på et projekt: pipelineværdi, vinderchance og faktureret. Kun de felter, der sendes med, ændres. Tomt = "ved ikke" (null). */
+export async function setOekonomi(id: string, o: Partial<Record<"vaerdi" | "sandsynlighed" | "faktureret", number | null>>): Promise<void> {
   const { error } = await supabase.from("projekter").update(o).eq("id", id);
   if (error) throw error;
 }
