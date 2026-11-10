@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setOekonomi, setStage, setVelatir, vaegtet, type Data, type Faktura, type Projekt, type Stage } from "./data";
 import NextStep from "./NextStep";
 import { kundeStatus } from "./Kunder";
 import { Activity, Contact, Group, LinkedinFelt, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
@@ -47,7 +47,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           <div className="fsub">
             {p.firma?.kontaktperson && <span>{p.firma.kontaktperson.trim()}</span>}
             <span>{p.produkt}</span>
-            {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}</span> : null}
+            {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}{p.sandsynlighed != null ? ` · ${p.sandsynlighed}%` : ""}</span> : null}
             {boldenHosDig(akt) && <span className="ball">Bolden er hos dig</span>}
           </div>
           {/* Status: ét tryk flytter projektet i pipelinen. */}
@@ -88,6 +88,10 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
                 </>
               )}
             </section>
+            {/* Økonomi: hvad er næste handel værd, hvor sandsynlig er den, og hvad er allerede faktureret. Netværk har ingen. */}
+            {p.stage !== "netvaerk" && (
+              <Oekonomi key={p.id} p={p} onSave={o => run(() => setOekonomi(p.id, o), "Økonomien er gemt")} />
+            )}
             {p.stage === "kunde" && (
               <Genkoeb key={p.id} genkoeb={p.genkoeb} sidste={kundeStatus(p, data).sidste} naeste={kundeStatus(p, data).naeste}
                 onSave={(g, d) => run(() => setGenkoeb(p.id, g, d), "Genkøb er gemt")} />
@@ -186,6 +190,49 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Tekst fra et talfelt til et tal. "25.000" og "25000" bliver begge til 25000. Tomt felt bliver null. */
+const tal = (s: string): number | null => {
+  const ren = s.replace(/[^\d]/g, "");
+  return ren ? Number(ren) : null;
+};
+
+/** Økonomi på et projekt: værdi af næste handel, vinderchance og faktureret indtil nu. */
+function Oekonomi({ p, onSave }: {
+  p: Projekt;
+  onSave: (o: { vaerdi: number | null; sandsynlighed: number | null; faktureret: number | null }) => Promise<void>;
+}) {
+  const [vaerdi, setVaerdi] = useState(p.vaerdi?.toString() ?? "");
+  const [chance, setChance] = useState(p.sandsynlighed?.toString() ?? "");
+  const [fakt, setFakt] = useState(p.faktureret?.toString() ?? "");
+  const [busy, setBusy] = useState(false);
+  const nyt = { vaerdi: tal(vaerdi), sandsynlighed: tal(chance), faktureret: tal(fakt) };
+  const forHoej = nyt.sandsynlighed != null && nyt.sandsynlighed > 100;
+  const aendret = nyt.vaerdi !== p.vaerdi || nyt.sandsynlighed !== p.sandsynlighed || nyt.faktureret !== p.faktureret;
+  // Den vægtede værdi regnes live, mens du skriver.
+  const v = forHoej ? 0 : vaegtet({ ...p, ...nyt });
+  return (
+    <section className="panel">
+      <div className="sec">Økonomi</div>
+      <div className="lead-fields">
+        <div className="lf-two">
+          <div><label htmlFor="ok-vaerdi">Næste handel, kr.</label>
+            <input id="ok-vaerdi" inputMode="numeric" value={vaerdi} placeholder="Fx 25000" onChange={e => setVaerdi(e.target.value)} /></div>
+          <div><label htmlFor="ok-chance">Vinderchance, %</label>
+            <input id="ok-chance" inputMode="numeric" value={chance} placeholder="0-100" onChange={e => setChance(e.target.value)} /></div>
+        </div>
+        <label htmlFor="ok-fakt">Faktureret indtil nu, kr.</label>
+        <input id="ok-fakt" inputMode="numeric" value={fakt} placeholder="Det, der allerede er vundet og faktureret" onChange={e => setFakt(e.target.value)} />
+      </div>
+      <div className="acts">
+        <span className="muted small">{forHoej ? "Vinderchancen kan højst være 100 %." : v ? `Vægtet: ${kr(v)}` : "Vægtet: sæt værdi og vinderchance"}</span>
+        <button type="button" className="btn primary" disabled={!aendret || forHoej || busy}
+          onClick={async () => { setBusy(true); try { await onSave(nyt); } finally { setBusy(false); } }}>
+          {busy ? "Gemmer…" : "Gem"}</button>
+      </div>
+    </section>
   );
 }
 

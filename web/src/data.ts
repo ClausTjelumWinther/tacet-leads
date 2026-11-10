@@ -10,7 +10,9 @@ export interface Projekt {
   virksomhed_id: string | null;
   produkt: string;
   stage: Stage;
-  vaerdi: number | null;
+  vaerdi: number | null;            // forventet værdi af den næste handel (pipeline), ikke det allerede fakturerede
+  faktureret: number | null;        // kr. der allerede er faktureret på projektet
+  sandsynlighed: number | null;     // vinderchance i procent, 0-100
   naeste_skridt: string | null;
   naeste_skridt_dato: string | null;
   noter: string | null;
@@ -116,7 +118,7 @@ export const KATEGORI: Record<Person["kategori"], string> = { privat: "Privat", 
 export async function loadAll(): Promise<Data> {
   const [p, pe, o, h, f, m, ml, ar, de, lo, op, mi] = await Promise.all([
     supabase.from("projekter").select(
-      "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
+      "id, virksomhed_id, produkt, stage, vaerdi, faktureret, sandsynlighed, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
       "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20, fakturanavn, cvr, adresse, postnummer, by)"),
     supabase.from("personer").select(
       "id, navn, kategori, virksomhed_id, email, mobilnummer, linkedin, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
@@ -436,6 +438,12 @@ export async function setVelatir(id: string, velatir: boolean): Promise<void> {
   if (error) throw error;
 }
 
+/** Økonomien på et projekt: pipelineværdi, vinderchance og faktureret. Tomt felt gemmes som "ved ikke" (null). */
+export async function setOekonomi(id: string, o: { vaerdi: number | null; sandsynlighed: number | null; faktureret: number | null }): Promise<void> {
+  const { error } = await supabase.from("projekter").update(o).eq("id", id);
+  if (error) throw error;
+}
+
 /** Over 20 funktionærer? true/false, eller null hvis du ikke ved det. */
 export async function setOver20(virksomhedId: string, over20: boolean | null): Promise<void> {
   const { error } = await supabase.from("virksomheder").update({ over20 }).eq("id", virksomhedId);
@@ -443,6 +451,13 @@ export async function setOver20(virksomhedId: string, over20: boolean | null): P
 }
 
 // ---------- Hjælpere ----------
+
+/** Stages der tæller med i pipelinen. Netværk bliver aldrig kunder, og tabte er tabt. */
+export const I_SPIL: Stage[] = ["lead", "dialog", "tilbud", "kunde"];
+
+/** Vægtet værdi: værdien ganget med vinderchancen. Uden vinderchance tæller projektet ikke med. */
+export const vaegtet = (p: Projekt): number =>
+  p.vaerdi && p.sandsynlighed != null ? Math.round(p.vaerdi * p.sandsynlighed / 100) : 0;
 
 export const projectName = (p: Projekt) => p.firma?.firmanavn?.trim() || p.produkt;
 

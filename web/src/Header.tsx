@@ -1,5 +1,5 @@
 import { addDays, today } from "./dates";
-import type { Data } from "./data";
+import { I_SPIL, vaegtet, type Data } from "./data";
 
 export type Jump = "forfaldent" | "uge" | "loefter" | "pipeline";
 
@@ -15,13 +15,14 @@ export default function Header({ data, loading, onRefresh, onJump, onHome }:
     const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).length
       + data.opgaver.filter(o => o.forfald && o.forfald < t).length;
     const week = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= addDays(t, 6)).length;
-    const pipe = data.projekter.filter(p => p.stage === "tilbud" || p.stage === "dialog").reduce((s, p) => s + (p.vaerdi ?? 0), 0);
+    // Vægtet pipeline: hver handel ganget med sin vinderchance, inkl. genkøb hos kunder.
+    const pipe = data.projekter.filter(p => I_SPIL.includes(p.stage)).reduce((s, p) => s + vaegtet(p), 0);
     pulse = (
       <div className="pulse">
         <button type="button" className={over ? "hot" : ""} onClick={() => onJump("forfaldent")}><b>{over}</b><span>Forfaldne</span></button>
         <button type="button" onClick={() => onJump("uge")}><b>{week}</b><span>Næste 7 dage</span></button>
         <button type="button" onClick={() => onJump("loefter")}><b>{data.opgaver.length}</b><span>Løfter</span></button>
-        <button type="button" onClick={() => onJump("pipeline")}><b>{new Intl.NumberFormat("da-DK", { notation: "compact", maximumFractionDigits: 0 }).format(pipe)}</b><span>I spil, kr.</span></button>
+        <button type="button" onClick={() => onJump("pipeline")}><b>{new Intl.NumberFormat("da-DK", { notation: "compact", maximumFractionDigits: 0 }).format(pipe)}</b><span>Vægtet, kr.</span></button>
       </div>
     );
   }
