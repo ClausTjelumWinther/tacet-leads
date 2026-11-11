@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
+import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setOekonomi, setStage, setVelatir, vaegtet, type Data, type Faktura, type Projekt, type Stage } from "./data";
 import NextStep from "./NextStep";
 import { kundeStatus } from "./Kunder";
 import { Activity, Contact, Group, LinkedinFelt, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
@@ -47,7 +47,7 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
           <div className="fsub">
             {p.firma?.kontaktperson && <span>{p.firma.kontaktperson.trim()}</span>}
             <span>{p.produkt}</span>
-            {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}</span> : null}
+            {p.vaerdi ? <span className="mono">{kr(p.vaerdi)}{p.sandsynlighed != null ? ` · ${p.sandsynlighed}%` : ""}</span> : null}
             {boldenHosDig(akt) && <span className="ball">Bolden er hos dig</span>}
           </div>
           {/* Status: ét tryk flytter projektet i pipelinen. */}
@@ -88,6 +88,10 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
                 </>
               )}
             </section>
+            {/* Økonomi: hvad er næste handel værd, hvor sandsynlig er den, og hvad er allerede faktureret. Netværk har ingen. */}
+            {p.stage !== "netvaerk" && (
+              <Oekonomi key={p.id} p={p} onSave={o => run(() => setOekonomi(p.id, o), "Økonomien er gemt")} />
+            )}
             {p.stage === "kunde" && (
               <Genkoeb key={p.id} genkoeb={p.genkoeb} sidste={kundeStatus(p, data).sidste} naeste={kundeStatus(p, data).naeste}
                 onSave={(g, d) => run(() => setGenkoeb(p.id, g, d), "Genkøb er gemt")} />
@@ -186,6 +190,67 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
         </aside>
       </div>
     </div>
+  );
+}
+
+/**
+ * Tekst fra et talfelt til et tal, på dansk: "25000", "25.000" og "25.000,00" giver alle 25000.
+ * Tomt felt giver null ("ved ikke"). Alt andet, fx et minus eller bogstaver, giver undefined = ugyldigt.
+ */
+const tal = (s: string): number | null | undefined => {
+  const ren = s.replace(/\s|kr\.?|%/gi, "");
+  if (!ren) return null;
+  // Enten cifre med punktum som tusindtalsskille, eller bare cifre. Decimaler efter komma rundes af.
+  if (!/^(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(ren)) return undefined;
+  return Math.round(Number(ren.replace(/\./g, "").replace(",", ".")));
+};
+
+type Felt = "vaerdi" | "sandsynlighed" | "faktureret";
+type Tal = Record<Felt, number | null>;
+
+/** Økonomi på et projekt: værdi af næste handel, vinderchance og faktureret indtil nu. */
+function Oekonomi({ p, onSave }: { p: Projekt; onSave: (o: Partial<Tal>) => Promise<void> }) {
+  // Udgangspunktet: tallene, som de var, da kortet blev åbnet (eller sidst gemt).
+  const [start, setStart] = useState<Tal>({ vaerdi: p.vaerdi, sandsynlighed: p.sandsynlighed, faktureret: p.faktureret });
+  const [vaerdi, setVaerdi] = useState(p.vaerdi?.toString() ?? "");
+  const [chance, setChance] = useState(p.sandsynlighed?.toString() ?? "");
+  const [fakt, setFakt] = useState(p.faktureret?.toString() ?? "");
+  const [busy, setBusy] = useState(false);
+  const nyt = { vaerdi: tal(vaerdi), sandsynlighed: tal(chance), faktureret: tal(fakt) };
+  const ugyldig = Object.values(nyt).some(x => x === undefined);
+  const forHoej = nyt.sandsynlighed != null && nyt.sandsynlighed > 100;
+  // Kun de felter, du selv har rettet, gemmes. Så overskriver vi ikke et tal, der er ændret et andet sted imens.
+  const rettet: Partial<Tal> = {};
+  (Object.keys(nyt) as Felt[]).forEach(k => { if (nyt[k] !== undefined && nyt[k] !== start[k]) rettet[k] = nyt[k]!; });
+  const aendret = Object.keys(rettet).length > 0;
+  // Den vægtede værdi regnes live, mens du skriver.
+  const v = ugyldig || forHoej ? 0 : vaegtet({ ...p, ...(nyt as Tal) });
+  const besked = ugyldig ? "Skriv kun hele tal, fx 25000 eller 25.000."
+    : forHoej ? "Vinderchancen kan højst være 100 %."
+    : v ? `Vægtet: ${kr(v)}` : "Vægtet: sæt værdi og vinderchance";
+  return (
+    <section className="panel">
+      <div className="sec">Økonomi</div>
+      <div className="lead-fields">
+        <div className="lf-two">
+          <div><label htmlFor="ok-vaerdi">Næste handel, kr.</label>
+            <input id="ok-vaerdi" inputMode="numeric" value={vaerdi} placeholder="Fx 25000" onChange={e => setVaerdi(e.target.value)} /></div>
+          <div><label htmlFor="ok-chance">Vinderchance, %</label>
+            <input id="ok-chance" inputMode="numeric" value={chance} placeholder="0-100" onChange={e => setChance(e.target.value)} /></div>
+        </div>
+        <label htmlFor="ok-fakt">Faktureret indtil nu, kr.</label>
+        <input id="ok-fakt" inputMode="numeric" value={fakt} placeholder="Det, der allerede er vundet og faktureret" onChange={e => setFakt(e.target.value)} />
+      </div>
+      <div className="acts">
+        <span className="muted small">{besked}</span>
+        <button type="button" className="btn primary" disabled={!aendret || ugyldig || forHoej || busy}
+          onClick={async () => {
+            setBusy(true);
+            try { await onSave(rettet); setStart({ ...start, ...rettet }); } finally { setBusy(false); }
+          }}>
+          {busy ? "Gemmer…" : "Gem"}</button>
+      </div>
+    </section>
   );
 }
 

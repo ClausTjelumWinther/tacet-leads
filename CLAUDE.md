@@ -29,6 +29,8 @@ Tabeller i `public`: `virksomheder`, `projekter`, `linkedin_outreach`, `personer
 
 **Til mig selv** (`opgaver.til_mig = true`) er små ting, Claus selv skal huske ("køb en Sonos-højttaler", "tal med renseriet"). Siger han "husk: …" eller "jeg skal huske at …" uden en person eller kunde, så indsæt en række med `til_mig = true` og kun dato, hvis han nævner en. De vises under *Til mig selv* på *I dag* og er **ikke løfter**: de tæller ikke i "holdt inden 48 timer", kommer ikke med i top 3, "Hvad har jeg lovet?" eller "Husk også", medmindre Claus spørger "hvad skal jeg huske?".
 
+**Værdi, vinderchance og faktureret** (fra 10/11/2026): `projekter.vaerdi` er kun forventet værdi af den næste handel (pipeline), kr. ekskl. moms. Det, der allerede er vundet og faktureret, står i `projekter.faktureret`. `projekter.sandsynlighed` er vinderchancen i procent (0-100). Vægtet pipeline = `vaerdi × sandsynlighed / 100` for lead, dialog, tilbud og kunde (genkøb). Bland aldrig faktureret ind i `vaerdi`. De gamle tal ligger i `projekter_vaerdi_backup_20261110`.
+
 Stage-værdier i `projekter.stage`: `lead`, `dialog`, `tilbud`, `kunde`, `tabt`, `netvaerk`.
 
 **Netværk** (`stage = 'netvaerk'`) er leadgeneratorer: folk og firmaer, der skaffer Claus kunder, men aldrig selv bliver kunder hos Tacet. Fx Martin Brems (Brems & Co), Ole Schmidt (Aider), Jan Jessen (Training Gallery). De har næste skridt ligesom alle andre, men tælles aldrig med i pipelineværdien.

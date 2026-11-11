@@ -34,7 +34,7 @@ export function ProjectRow({ p, onOpen }: { p: Projekt; onOpen: () => void }) {
       </span>
       <span className="side">
         <WhenChip date={p.naeste_skridt_dato} />
-        {p.vaerdi ? <span className="val">{kr(p.vaerdi)}</span> : null}
+        {p.vaerdi ? <span className="val">{kr(p.vaerdi)}{p.sandsynlighed != null ? ` · ${p.sandsynlighed}%` : ""}</span> : null}
       </span>
       <span className={`next${p.naeste_skridt ? "" : " none"}`}>{p.naeste_skridt || "Intet næste skridt"}</span>
     </button>

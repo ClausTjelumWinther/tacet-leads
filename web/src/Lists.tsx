@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, today } from "./dates";
-import { ACTIVE, STAGES, acceptForslag, completeTask, errorText, rejectForslag, type Data, type Projekt, type Stage } from "./data";
+import { ACTIVE, STAGES, acceptForslag, completeTask, errorText, rejectForslag, vaegtet, type Data, type Projekt, type Stage } from "./data";
 import { ForslagRow, Group, PersonRow, ProjectRow, TaskRow } from "./parts";
 import type { FocusKey } from "./Focus";
 import Maal from "./Maal";
@@ -100,7 +100,8 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
     const col = (s: Stage) => {
       const rows = projekter.filter(p => p.stage === s).sort(byDate);
       const sum = rows.reduce((a, p) => a + (p.vaerdi ?? 0), 0);
-      return <Group key={s} title={STAGES[s]} extra={sum ? kr(sum) : undefined} count={rows.length}>{rows.map(pRow)}</Group>;
+      const vgt = rows.reduce((a, p) => a + vaegtet(p), 0);
+      return <Group key={s} title={STAGES[s]} extra={sum ? `${kr(sum)} · vægtet ${kr(vgt)}` : undefined} count={rows.length}>{rows.map(pRow)}</Group>;
     };
     const lost = data.projekter.filter(p => p.stage === "tabt").length;
     body = (

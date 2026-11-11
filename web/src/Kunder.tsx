@@ -40,14 +40,15 @@ export default function Kunder({ data, onOpen }: { data: Data; onOpen: (k: Focus
   const grp = (g: Status["gruppe"]) => med.filter(x => x.s.gruppe === g)
     .sort((a, b) => (b.s.sidste ?? "").localeCompare(a.s.sidste ?? ""));
   const igang = grp("igang"), klar = grp("klar"), sovende = grp("sovende");
-  const omsaetning = kunder.reduce((a, p) => a + (p.vaerdi ?? 0), 0);
+  const faktureret = kunder.reduce((a, p) => a + (p.faktureret ?? 0), 0);
 
   const row = ({ p, s }: { p: Projekt; s: Status }) => (
     <button type="button" key={p.id} className="row kunde" onClick={() => onOpen({ kind: "projekt", id: p.id })}>
       <span className="who">{projectName(p)}{p.velatir && <span className="pill">Velatir</span>}</span>
       <span className="side"><WhenChip date={p.naeste_skridt_dato} /></span>
       <span className="next">
-        {p.produkt}{p.vaerdi ? ` · ${kr(p.vaerdi)}` : ""}
+        {p.produkt}{p.faktureret ? ` · faktureret ${kr(p.faktureret)}` : ""}
+        {p.vaerdi ? ` · næste ${kr(p.vaerdi)}${p.sandsynlighed != null ? ` (${p.sandsynlighed}%)` : ""}` : ""}
         {s.naeste ? ` · næste leverance ${short(s.naeste)}` : s.sidste ? ` · sidst ${siden(s.sidste)}` : " · dato mangler"}
       </span>
       <span className={`genkoeb${p.genkoeb ? "" : " none"}`}>{p.genkoeb ? `Genkøb: ${p.genkoeb}` : "Ingen genkøbsidé endnu"}</span>
@@ -56,7 +57,7 @@ export default function Kunder({ data, onOpen }: { data: Data; onOpen: (k: Focus
 
   return (
     <>
-      <p className="muted small kunder-intro">{kunder.length} kunder · {kr(omsaetning)} i alt. Genkøb er alt, du kan fakturere, også Velatir.</p>
+      <p className="muted small kunder-intro">{kunder.length} kunder · {kr(faktureret)} faktureret i alt. Genkøb er alt, du kan fakturere, også Velatir.</p>
       <div className="grid split">
         <div>
           <Group title="Klar til genkøb" extra="sidst leveret inden for 4 mdr." count={klar.length} empty="Ingen lige nu.">{klar.map(row)}</Group>
