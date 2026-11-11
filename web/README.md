@@ -27,6 +27,7 @@ Læs filerne i denne rækkefølge, så giver det mening:
 | `src/styles.css` | Hele designet. Farverne står som tokens øverst. |
 | `public/` | Ikoner og `manifest.webmanifest`, der gør appen installerbar. |
 | `public/noter.html` | Noter og fjernbetjening til Claus' HTML-præsentationer. Selvstændig side uden for React-appen: telefonen scanner QR-koden fra præsentationen (tasten N) og følger med via Supabase Realtime. Intet gemmes i databasen. |
+| `public/afstemning.html` | Live-afstemning til Claus' præsentationer: deltagerne scanner QR-koden på afstemningssliden og svarer på telefonen; svarene går via Supabase Realtime direkte til præsentationen. Intet gemmes i databasen. |
 
 **Tre begreber at kende:**
 - **Komponent:** en funktion, der returnerer HTML (fx `ProjectRow`). React tegner den igen, når dens data ændrer sig.
