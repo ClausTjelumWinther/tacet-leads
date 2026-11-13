@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDays, kr, short, today } from "./dates";
-import { KATEGORI, STAGES, addNote, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
+import { FOKUS_LOFT, KATEGORI, STAGES, addNote, iFokus, setFokus, completeStep, completeTask, errorText, haendelserFor, moveNextStep, projectName, setFaktura, setGenkoeb, setLinkedin, setStage, setVelatir, type Data, type Faktura, type Projekt, type Stage } from "./data";
 import NextStep from "./NextStep";
 import { kundeStatus } from "./Kunder";
 import { Activity, Contact, Group, LinkedinFelt, PersonRow, ProjectRow, Promises, Timeline, WhenChip, boldenHosDig } from "./parts";
@@ -58,6 +58,15 @@ export default function Focus({ data, focusKey, tabLabel, onBack, onOpen, onChan
               onChange={e => run(() => setVelatir(p.id, e.target.checked), e.target.checked ? "Markeret som Velatir" : "Velatir-markering fjernet")} />
             <span>Velatir-lead</span>
           </label>
+          {/* Fokus 7: er det her en af de højst 7 ting, du har i hovedet lige nu? */}
+          {p.stage !== "tabt" && (
+            <label className="velatir-toggle">
+              <input type="checkbox" checked={p.fokus}
+                onChange={e => run(() => setFokus(data, p.id, e.target.checked),
+                  e.target.checked ? "Taget i fokus" : "Lagt på hylden")} />
+              <span>I fokus ({iFokus(data).length}/{FOKUS_LOFT})</span>
+            </label>
+          )}
         </header>
         {flashEl}
         <div className="fgrid">

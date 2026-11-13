@@ -8,6 +8,7 @@ import Header, { type Jump } from "./Header";
 import Lists, { type Tab, TABS } from "./Lists";
 import Focus, { type FocusKey } from "./Focus";
 import QuickNote from "./QuickNote";
+import Oprydning from "./Oprydning";
 import VoiceNote, { MicIcon, hasDraft } from "./VoiceNote";
 import { updateIfNewer, versionLabel } from "./version";
 
@@ -54,6 +55,7 @@ function Shell() {
   const [quick, setQuick] = useState(false);
   const [voice, setVoice] = useState(false);
   const [skiftKode, setSkiftKode] = useState(false);
+  const [rydOp, setRydOp] = useState(false);   // Oprydning: ét kort ad gangen
   // Søgeteksten bor her, så den bliver stående, når du åbner et fokuskort og går tilbage.
   const [query, setQuery] = useState("");
 
@@ -100,6 +102,7 @@ function Shell() {
 
   // Tallene øverst: skift til den rigtige fane og rul ned til sektionen.
   const jump = (j: Jump) => {
+    setRydOp(false);
     chooseTab(j === "pipeline" ? "pipeline" : "idag");
     // Vent til listen er tegnet, før vi ruller.
     setTimeout(() => {
@@ -111,6 +114,7 @@ function Shell() {
   // Når en note er gemt, er du færdig med det, du ledte efter.
   // Klik på "Puls": luk fokuskortet, ryd søgningen, gå til I dag og rul til toppen.
   const goHome = () => {
+    setRydOp(false);
     chooseTab("idag");   // chooseTab lukker også et åbent fokuskort og rydder søgningen
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -139,9 +143,11 @@ function Shell() {
       <Header data={data} loading={loading} onRefresh={reload} onJump={jump} onHome={goHome} />
       {error && <div className="banner">{error}</div>}
       {!data && !error && <div className="loading"><b>Henter dine leads</b>Et øjeblik.</div>}
-      {data && (focus
+      {data && (rydOp
+        ? <Oprydning data={data} onClose={() => { setRydOp(false); window.scrollTo(0, 0); }} onChanged={reload} />
+        : focus
         ? <Focus data={data} focusKey={focus} tabLabel={TABS.find(t => t.key === tab)!.label} onBack={closeFocus} onOpen={openFocus} onChanged={reload} />
-        : <Lists data={data} tab={tab} onTab={chooseTab} onOpen={openFocus} onChanged={reload} query={query} setQuery={setQuery} />)}
+        : <Lists data={data} tab={tab} onTab={chooseTab} onOpen={openFocus} onChanged={reload} query={query} setQuery={setQuery} onRydOp={() => { setRydOp(true); window.scrollTo(0, 0); }} />)}
       {loadedAt && (
         <footer className="foot">
           Hentet {loadedAt.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })} · version {versionLabel()}

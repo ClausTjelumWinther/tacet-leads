@@ -18,6 +18,7 @@ Læs filerne i denne rækkefølge, så giver det mening:
 | `src/dates.ts` | Datohjælpere i dansk tid. |
 | `src/Lists.tsx` | Fanerne: I dag, Pipeline, Netværk, Velatir, Personer. |
 | `src/Focus.tsx` | Fokuskortet for én person eller ét projekt. |
+| `src/Oprydning.tsx` | Fokus 7: ét kort ad gangen. Vælg *I fokus* (højst 7), *Venter på svar*, *Parkér til …* eller *Slip den*. |
 | `src/QuickNote.tsx` | "+ Note"-knappen: vælg person og skriv selv. |
 | `src/VoiceNote.tsx` | Mikrofonen: lyt → Claude sorterer → du godkender og gemmer. |
 | `src/NoteComposer.tsx` | Notefeltet i "+ Note" og på fokuskortet: Indtal · Kort og præcis (Claude) · Gem. |
