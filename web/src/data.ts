@@ -427,6 +427,8 @@ export async function setStage(p: Projekt, stage: Stage): Promise<void> {
   const linje = `${stamp()}: Status: ${STAGES[p.stage]} → ${STAGES[stage]}`;
   const patch: Record<string, unknown> = { stage, noter: p.noter ? `${linje}\n${p.noter}` : linje };
   if (stage === "kunde" && !p.dato) patch.dato = today();
+  // Et tabt projekt forlader fokus, så det ikke sniger sig ind som nummer 8, hvis det genoplives.
+  if (stage === "tabt") patch.fokus = false;
   const { error } = await supabase.from("projekter").update(patch).eq("id", p.id);
   if (error) throw error;
 }
