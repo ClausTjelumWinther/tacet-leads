@@ -26,13 +26,14 @@ h1 { margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 40
 .word button { appearance: none; font: inherit; font-size: 18px; padding: 16px; border-radius: 14px; border: 0; background: var(--ink); color: var(--sand); }
 .thanks { font-size: 16px; color: var(--muted); min-height: 1.5em; }
 .wait p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.5; }
+.retry { margin-top: 18px; appearance: none; font: inherit; font-size: 17px; padding: 14px 22px; border-radius: 14px; border: 0.5px solid var(--line); background: var(--white); color: var(--ink); }
 [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <header><b>Tacet</b><span id="st">Forbinder …</span></header>
 <main>
-  <div id="wait" class="wait"><h1>Velkommen</h1><p id="wmsg">Spørgsmålet kommer om lidt. Kig op på skærmen.</p></div>
+  <div id="wait" class="wait"><h1>Velkommen</h1><p id="wmsg">Spørgsmålet kommer om lidt. Kig op på skærmen.</p><button id="retry" class="retry" type="button" hidden>Prøv igen</button></div>
   <div id="q" hidden>
     <div class="step" id="qn"></div>
     <h1 id="qt"></h1>
@@ -61,26 +62,33 @@ h1 { margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 40
     $('wait').hidden = true; $('q').hidden = false;
     $('qn').textContent = 'Spørgsmål ' + (q.i + 1) + ' af ' + q.n;
     $('qt').textContent = q.q;
-    const mine = answers[q.i];
-    $('thx').textContent = mine != null ? 'Tak. Du kan stadig ændre dit svar.' : '';
+    const mine = answers[q.i], got = !!q.got && typeof q.got === 'object' && mine != null && q.got[me] === mine;
+    /* skærmen kvitterer; mangler kvitteringen, sendes svaret igen */
+    if (mine != null && q.got && !got) send({ id: me, i: q.i, v: mine });
+    $('thx').textContent = mine == null ? '' : got ? 'Tak, dit svar er modtaget. Du kan stadig ændre det.' : 'Sender dit svar …';
     if (q.type === 'ord') {
-      $('opts').replaceChildren(); $('word').hidden = false;
+      $('opts').replaceChildren(); $('opts').dataset.key = ''; $('word').hidden = false;
       if (mine && document.activeElement !== $('w')) $('w').value = mine;
     } else {
       $('word').hidden = true;
-      $('opts').replaceChildren(...q.options.map((o, k) => {
-        const b = document.createElement('button'); b.type = 'button'; b.textContent = o;
-        b.classList.toggle('on', mine === k);
-        b.onclick = () => vote(k);
-        return b;
-      }));
+      /* knapperne tegnes kun, når spørgsmålet skifter, så et tryk aldrig går tabt */
+      const key = q.i + '|' + q.q;
+      if ($('opts').dataset.key !== key) {
+        $('opts').dataset.key = key;
+        $('opts').replaceChildren(...q.options.map((o, k) => {
+          const b = document.createElement('button'); b.type = 'button'; b.textContent = o;
+          b.onclick = () => vote(k);
+          return b;
+        }));
+      }
+      [...$('opts').children].forEach((b, k) => b.classList.toggle('on', mine === k));
     }
   }
   function vote(v) {
     if (!curQ) return;
     answers[curQ.i] = v; keep();
     send({ id: me, i: curQ.i, v });
-    show(curQ);
+    show(Object.assign({}, curQ, { got: undefined }));
     if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
   }
   $('word').addEventListener('submit', e => {
@@ -90,22 +98,43 @@ h1 { margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 40
     $('w').value = w; $('w').blur(); vote(w.slice(0, 24));
   });
 
+  /* Forbindelsen reparerer sig selv: telefonen spørger efter spørgsmålet hvert 3. sekund,
+     indtil det kommer, og bygger kanalen forfra, hvis den ikke kommer op eller falder ud. */
+  let sb = null, ch = null, joined = false, watch = 0, gotQ = false, tries = 0;
+  const t0 = Date.now();
+  const hello = () => { if (ch) try { ch.send({ type: 'broadcast', event: 'hello', payload: { id: me } }); } catch (e) {} };
+  const resend = () => Object.entries(answers).forEach(([i, v]) => send({ id: me, i: +i, v }));
+  function rebuild(ms) { clearTimeout(watch); watch = setTimeout(() => { joined = false; if (ch) try { sb.removeChannel(ch); } catch (e) {} ch = null; if (++tries % 3 === 0) sb = null; connect(); }, ms); }
+  function connect() {
+    if (!window.supabase) return;
+    try {
+      sb = sb || window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+      const c = ch = sb.channel('tacet-poll-' + code, { config: { broadcast: { self: false } } });
+      c.on('broadcast', { event: 'q' }, ({ payload }) => { gotQ = true; $('st').textContent = 'Forbundet'; $('retry').hidden = true; show(payload); });
+      c.on('broadcast', { event: 'sync' }, resend);
+      c.on('broadcast', { event: 'end' }, () => { show(null); $('wmsg').textContent = 'Tak for dine svar. Kig op på skærmen.'; });
+      c.subscribe(st => {
+        if (c !== ch) return;
+        if (st === 'SUBSCRIBED') { clearTimeout(watch); joined = true; tries = 0; $('st').textContent = 'Forbundet'; hello(); resend(); }
+        else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') { joined = false; $('st').textContent = 'Forbinder igen …'; rebuild(1500); }
+      });
+      send = p => { if (ch) try { ch.send({ type: 'broadcast', event: 'vote', payload: p }); } catch (e) {} };
+      rebuild(8000);   /* vagthund: ikke oppe om 8 sek. = prøv igen */
+    } catch (e) { rebuild(3000); }
+  }
+  setInterval(() => {
+    if (!ch) return;
+    if (!gotQ) hello();
+    if (!gotQ && Date.now() - t0 > 20000) $('retry').hidden = false;
+  }, 3000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (!joined) rebuild(0); else hello(); } });
+  window.addEventListener('online', () => rebuild(0));
+  $('retry').onclick = () => location.reload();
+
   const s = document.createElement('script');
   s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
-  s.onerror = () => { $('st').textContent = 'Ingen forbindelse'; };
-  s.onload = () => {
-    const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
-    const ch = sb.channel('tacet-poll-' + code, { config: { broadcast: { self: false } } });
-    ch.on('broadcast', { event: 'q' }, ({ payload }) => { $('st').textContent = 'Forbundet'; show(payload); });
-    ch.on('broadcast', { event: 'sync' }, () => { Object.entries(answers).forEach(([i, v]) => send({ id: me, i: +i, v })); });
-    ch.on('broadcast', { event: 'end' }, () => { show(null); $('wmsg').textContent = 'Tak for dine svar. Kig op på skærmen.'; });
-    ch.subscribe(st => {
-      if (st === 'SUBSCRIBED') { $('st').textContent = 'Forbundet'; ch.send({ type: 'broadcast', event: 'hello', payload: { id: me } }); Object.entries(answers).forEach(([i, v]) => send({ id: me, i: +i, v })); }
-      else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') $('st').textContent = 'Forbinder igen …';
-    });
-    send = p => ch.send({ type: 'broadcast', event: 'vote', payload: p });
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') ch.send({ type: 'broadcast', event: 'hello', payload: { id: me } }); });
-  };
+  s.onerror = () => { $('st').textContent = 'Ingen forbindelse'; $('retry').hidden = false; };
+  s.onload = connect;
   document.head.appendChild(s);
 })();
 </script>
