@@ -18,6 +18,7 @@ export interface Projekt {
   dato: string | null;              // hvornår projektet blev solgt/startede
   genkoeb: string | null;           // næste oplagte salg hos en kunde
   sidste_leverance: string | null;  // hvornår vi sidst leverede
+  fokus: boolean;                   // en af dine højst 7 aktive indsatser (Fokus 7)
   firma: {
     firmanavn: string; kontaktperson: string | null; email: string | null; mobilnummer: string | null; over20: boolean | null;
     // Til fakturering. fakturanavn er det juridiske navn, hvis det er et andet end firmanavn (fx VSG).
@@ -116,7 +117,7 @@ export const KATEGORI: Record<Person["kategori"], string> = { privat: "Privat", 
 export async function loadAll(): Promise<Data> {
   const [p, pe, o, h, f, m, ml, ar, de, lo, op, mi] = await Promise.all([
     supabase.from("projekter").select(
-      "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, " +
+      "id, virksomhed_id, produkt, stage, vaerdi, naeste_skridt, naeste_skridt_dato, noter, velatir, dato, genkoeb, sidste_leverance, fokus, " +
       "firma:virksomheder(firmanavn, kontaktperson, email, mobilnummer, over20, fakturanavn, cvr, adresse, postnummer, by)"),
     supabase.from("personer").select(
       "id, navn, kategori, virksomhed_id, email, mobilnummer, linkedin, noter, sidste_kontakt, firma:virksomheder(firmanavn)"),
@@ -430,6 +431,28 @@ export async function setStage(p: Projekt, stage: Stage): Promise<void> {
   if (error) throw error;
 }
 
+// ---------- Fokus 7 ----------
+
+/** Et menneske kan holde omkring 7 tråde i hovedet. Derfor højst 7 i fokus ad gangen. */
+export const FOKUS_LOFT = 7;
+
+/** Projekter i fokus (tabte tæller ikke med, selv om de stadig er markeret). */
+export const iFokus = (data: Data) => data.projekter.filter(p => p.fokus && p.stage !== "tabt");
+
+/** Tag et projekt i fokus eller læg det tilbage på hylden. Loftet tjekkes, før der skrives. */
+export async function setFokus(data: Data, id: string, fokus: boolean): Promise<void> {
+  if (fokus && iFokus(data).filter(p => p.id !== id).length >= FOKUS_LOFT)
+    throw new Error(`Fokus er fuld (${FOKUS_LOFT}/${FOKUS_LOFT}). Læg en anden på hylden først.`);
+  const { error } = await supabase.from("projekter").update({ fokus }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Venter vi på dem? Ja, hvis den seneste mail var fra dig, og datoen for næste skridt ikke er passeret. */
+export function venterPaaDem(data: Data, p: Projekt): boolean {
+  const sidste = haendelserFor(data, { projekt: p }).find(h => h.type === "mail_ind" || h.type === "mail_ud");
+  return sidste?.type === "mail_ud" && !!p.naeste_skridt_dato && p.naeste_skridt_dato > today();
+}
+
 /** Sæt eller fjern Velatir-markeringen på et projekt (peger på et Velatir-abonnement). */
 export async function setVelatir(id: string, velatir: boolean): Promise<void> {
   const { error } = await supabase.from("projekter").update({ velatir }).eq("id", id);
@@ -452,5 +475,6 @@ export function errorText(e: unknown): string {
   if (/Failed to fetch|NetworkError/i.test(msg)) return "Ingen forbindelse. Tjek internettet og prøv igen.";
   if (/JWT|session|auth/i.test(msg)) return "Dit login er udløbet. Log ind igen.";
   if (/permission|policy|row-level/i.test(msg)) return "Din bruger har ikke adgang. Tjek at den har admin-rollen.";
+  if (/^Fokus er fuld/.test(msg)) return msg;
   return msg ? `Noget gik galt: ${msg}` : "Noget gik galt. Prøv igen.";
 }

@@ -1,9 +1,11 @@
-import { addDays, today } from "./dates";
-import type { Data } from "./data";
+import { today } from "./dates";
+import { FOKUS_LOFT, iFokus, type Data } from "./data";
+import { tilOprydning } from "./Oprydning";
 
-export type Jump = "forfaldent" | "uge" | "loefter" | "pipeline";
+export type Jump = "fokus" | "hylde" | "loefter" | "pipeline";
 
-// Toppen: dato og de fire tal. Tallene er knapper, der springer til det, de tæller.
+// Toppen: dato og de fire tal. Med Fokus 7 er der ingen røde tal for alt det, der ligger på hylden:
+// kun hvor mange du har i fokus, hvor mange kort der venter på en beslutning, og løfterne. Tallene er knapper, der springer til det, de tæller.
 export default function Header({ data, loading, onRefresh, onJump, onHome }:
   { data: Data | null; loading: boolean; onRefresh: () => void; onJump: (j: Jump) => void; onHome: () => void }) {
   const t = today();
@@ -11,16 +13,16 @@ export default function Header({ data, loading, onRefresh, onJump, onHome }:
 
   let pulse = null;
   if (data) {
-    const live = data.projekter.filter(p => p.stage !== "tabt");
-    const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).length
-      + data.opgaver.filter(o => o.forfald && o.forfald < t).length;
-    const week = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= addDays(t, 6)).length;
+    const fokus = iFokus(data).length;
+    const ryd = tilOprydning(data).length;
+    // Løfter vejer tungt for en relationsmand, så forfaldne løfter er det eneste, der bliver rødt.
+    const loefterOver = data.opgaver.filter(o => o.forfald && o.forfald < t).length;
     const pipe = data.projekter.filter(p => p.stage === "tilbud" || p.stage === "dialog").reduce((s, p) => s + (p.vaerdi ?? 0), 0);
     pulse = (
       <div className="pulse">
-        <button type="button" className={over ? "hot" : ""} onClick={() => onJump("forfaldent")}><b>{over}</b><span>Forfaldne</span></button>
-        <button type="button" onClick={() => onJump("uge")}><b>{week}</b><span>Næste 7 dage</span></button>
-        <button type="button" onClick={() => onJump("loefter")}><b>{data.opgaver.length}</b><span>Løfter</span></button>
+        <button type="button" onClick={() => onJump("fokus")}><b>{fokus}/{FOKUS_LOFT}</b><span>I fokus</span></button>
+        <button type="button" onClick={() => onJump("hylde")}><b>{ryd}</b><span>Ryd op</span></button>
+        <button type="button" className={loefterOver ? "hot" : ""} onClick={() => onJump("loefter")}><b>{data.opgaver.length}</b><span>Løfter</span></button>
         <button type="button" onClick={() => onJump("pipeline")}><b>{new Intl.NumberFormat("da-DK", { notation: "compact", maximumFractionDigits: 0 }).format(pipe)}</b><span>I spil, kr.</span></button>
       </div>
     );

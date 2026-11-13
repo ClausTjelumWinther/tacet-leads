@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { addDays, kr, today } from "./dates";
-import { ACTIVE, STAGES, acceptForslag, completeTask, errorText, rejectForslag, type Data, type Projekt, type Stage } from "./data";
+import { ACTIVE, FOKUS_LOFT, STAGES, acceptForslag, iFokus, venterPaaDem, completeTask, errorText, rejectForslag, type Data, type Projekt, type Stage } from "./data";
 import { ForslagRow, Group, PersonRow, ProjectRow, TaskRow } from "./parts";
 import type { FocusKey } from "./Focus";
 import Maal from "./Maal";
 import Kunder from "./Kunder";
 import Mine from "./Mine";
+import { tilOprydning } from "./Oprydning";
 
 export type Tab = "idag" | "pipeline" | "kunder" | "netvaerk" | "velatir" | "personer" | "maal";
 export const TABS: { key: Tab; label: string }[] = [
@@ -20,10 +21,12 @@ export const TABS: { key: Tab; label: string }[] = [
 
 const byDate = (a: Projekt, b: Projekt) => (a.naeste_skridt_dato ?? "9999").localeCompare(b.naeste_skridt_dato ?? "9999");
 
-export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQuery }:
+export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQuery, onRydOp }:
   { data: Data; tab: Tab; onTab: (t: Tab) => void; onOpen: (k: FocusKey) => void; onChanged: () => Promise<void>;
-    query: string; setQuery: (q: string) => void }) {
+    query: string; setQuery: (q: string) => void; onRydOp: () => void }) {
   const [showPrivate, setShowPrivate] = useState(false);
+  const [alleLoefter, setAlleLoefter] = useState(false);
+  const [visHylde, setVisHylde] = useState(false);
   const t = today(), w = addDays(t, 6);
 
   // Søgningen virker på tværs af alle faner.
@@ -35,7 +38,7 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
   const pRow = (p: Projekt) => <ProjectRow key={p.id} p={p} onOpen={open(p)} />;
 
   const counts: Record<Tab, number> = {
-    idag: data.projekter.filter(p => p.stage !== "tabt" && p.naeste_skridt_dato && p.naeste_skridt_dato <= w).length + data.opgaver.length,
+    idag: iFokus(data).length,
     pipeline: data.projekter.filter(p => ACTIVE.includes(p.stage)).length,
     netvaerk: data.projekter.filter(p => p.stage === "netvaerk").length + data.personer.filter(x => x.kategori === "netvaerk").length,
     velatir: data.projekter.filter(p => p.velatir).length,
@@ -58,14 +61,21 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
       </div>
     );
   } else if (tab === "idag") {
-    const live = projekter.filter(p => p.stage !== "tabt");
-    const over = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato < t).sort(byDate);
-    const soon = live.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato >= t && p.naeste_skridt_dato <= w).sort(byDate);
-    // Et lead skal altid have en kommende action med dato. Netværk og kunder tæller med her.
-    const nodate = live.filter(p => (ACTIVE.includes(p.stage) || p.stage === "netvaerk" || p.stage === "kunde") && (!p.naeste_skridt?.trim() || !p.naeste_skridt_dato));
+    // Fokus 7: I dag viser kun det, du har valgt at have i hovedet lige nu (højst 7),
+    // delt efter hvor bolden ligger. Alt andet ligger på hylden og larmer ikke.
+    const fokus = iFokus(data).filter(p => projekter.includes(p)).sort(byDate);
+    const venter = fokus.filter(p => venterPaaDem(data, p));
+    const dinTur = fokus.filter(p => !venter.includes(p));
+    const ryd = tilOprydning(data);
+    const hylde = projekter
+      .filter(p => !p.fokus && p.stage !== "tabt" && !ryd.includes(p))
+      .sort(byDate);
+    const snart = hylde.filter(p => p.naeste_skridt_dato && p.naeste_skridt_dato <= w).length;
     const tasks = data.opgaver
       .filter(o => hit(o.tekst, o.person?.navn, o.projekt?.firma?.firmanavn))
       .sort((a, b) => (a.forfald ?? "9999").localeCompare(b.forfald ?? "9999"));
+    // Løfter er fredet: de forsvinder aldrig, men kun de 3 ældste vises, til du beder om resten.
+    const visTasks = alleLoefter ? tasks : tasks.slice(0, 3);
     // Kør et forslag og vis fejlen, hvis det går galt.
     const doF = (fn: () => Promise<void>) => async () => { try { await fn(); await onChanged(); } catch (e) { alert(errorText(e)); } };
     body = (
@@ -77,17 +87,41 @@ export default function Lists({ data, tab, onTab, onOpen, onChanged, query, setQ
       )}
       <div className="grid split">
         <div>
-          <Group id="forfaldent" title="Forfaldent" count={over.length} warn={over.length > 0} empty="Intet forfaldent. Du er ajour.">{over.map(pRow)}</Group>
-          <Group id="uge" title="De næste 7 dage" count={soon.length} empty="Ingen næste skridt den kommende uge.">{soon.map(pRow)}</Group>
+          <Group id="fokus" title="Din tur" extra={`${fokus.length}/${FOKUS_LOFT} i fokus`} count={dinTur.length}
+            empty={fokus.length ? "Bolden er hos de andre. Godt gået." : "Intet i fokus endnu. Tryk Ryd op og vælg op til 7."}>
+            {dinTur.map(pRow)}
+          </Group>
+          {venter.length > 0 && (
+            <Group id="venter" title="Venter på dem" count={venter.length}>{venter.map(pRow)}</Group>
+          )}
         </div>
         <div>
           <Group id="loefter" title="Små løfter" count={tasks.length} empty="Ingen åbne løfter.">
-            {tasks.map(o => <TaskRow key={o.id} o={o} onDone={async () => { await completeTask(o.id); await onChanged(); }} />)}
+            {visTasks.map(o => <TaskRow key={o.id} o={o} onDone={async () => { await completeTask(o.id); await onChanged(); }} />)}
+            {tasks.length > 3 && (
+              <button type="button" className="linkbtn more" onClick={() => setAlleLoefter(!alleLoefter)}>
+                {alleLoefter ? "Vis færre" : `Vis alle ${tasks.length}`}
+              </button>
+            )}
           </Group>
           <Mine data={data} onChanged={onChanged} />
-          <Group title="Mangler næste skridt" count={nodate.length} warn={nodate.length > 0} empty="Alle leads har et næste skridt med dato.">{nodate.map(pRow)}</Group>
         </div>
       </div>
+      <section className="hylde" id="hylde">
+        <div className="hylde-top">
+          <div>
+            <h2>Hylden</h2>
+            <div className="muted">{hylde.length} parkeret{snart ? ` · ${snart} kommer frem den næste uge` : ""}</div>
+          </div>
+          <button type="button" className="linkbtn" onClick={() => setVisHylde(!visHylde)}>{visHylde ? "Skjul" : "Vis"}</button>
+        </div>
+        {ryd.length > 0 && (
+          <button type="button" className="btn primary ryd-knap" onClick={onRydOp}>
+            Ryd op · {ryd.length} {ryd.length === 1 ? "kort venter" : "kort venter"} på en beslutning
+          </button>
+        )}
+        {visHylde && hylde.map(pRow)}
+      </section>
       </>
     );
   } else if (tab === "kunder") {
