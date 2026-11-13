@@ -15,7 +15,8 @@ export function tilOprydning(data: Data): Projekt[] {
   const t = today();
   return data.projekter
     .filter(p => !p.fokus && (ACTIVE.includes(p.stage) || p.stage === "netvaerk" || p.stage === "kunde"))
-    .filter(p => !p.naeste_skridt?.trim() || !p.naeste_skridt_dato || p.naeste_skridt_dato <= t)
+    // Har du parkeret kortet til en dato, respekteres den, også selv om næste skridt mangler tekst.
+    .filter(p => !p.naeste_skridt_dato || p.naeste_skridt_dato <= t)
     .sort((a, b) => (a.naeste_skridt_dato ?? "0000").localeCompare(b.naeste_skridt_dato ?? "0000")); // ældste først
 }
 
